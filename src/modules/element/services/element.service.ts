@@ -111,6 +111,7 @@ export class ElementService {
       .createQueryBuilder('element')
       .leftJoinAndSelect('element.norm', 'norm')
       .leftJoinAndSelect('element.subType', 'subType')
+      .leftJoinAndSelect('subType.designType', 'designType')
       .leftJoinAndSelect('norm.country', 'country')
       .where('element.id IN (:...ids)', { ids });
 

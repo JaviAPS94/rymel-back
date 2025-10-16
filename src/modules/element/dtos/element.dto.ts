@@ -29,6 +29,10 @@ export class SubTypeDto {
     type: () => TypeDto,
   })
   type?: TypeDto;
+  designType?: {
+    id: number;
+    name: string;
+  };
 }
 
 export class ElementResponseDto {

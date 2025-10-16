@@ -21,6 +21,9 @@ export class DesignSubType {
   @Column('nvarchar', { length: 'max' })
   name: string;
 
+  @Column({ nullable: true })
+  code: string;
+
   @ManyToOne(() => DesignType, (designType) => designType.designSubTypes)
   @JoinColumn({ name: 'design_type_id' })
   designType: DesignType;

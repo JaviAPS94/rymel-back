@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { DesignSubType } from './design-subtype.entity';
+import { SubType } from 'src/modules/subtype/entities/subtype.entity';
 
 @Entity('design_type')
 export class DesignType {
@@ -18,6 +19,9 @@ export class DesignType {
 
   @OneToMany(() => DesignSubType, (designSubType) => designSubType.designType)
   designSubTypes: DesignSubType[];
+
+  @OneToMany(() => SubType, (subType) => subType.designType)
+  subTypes: SubType[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

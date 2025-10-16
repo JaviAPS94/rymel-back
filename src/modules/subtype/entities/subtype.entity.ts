@@ -11,6 +11,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Type } from 'src/modules/type/entities/type.entity';
+import { DesignType } from 'src/modules/design/entities/design-type.entity';
 
 @Entity()
 export class SubType {
@@ -33,6 +34,12 @@ export class SubType {
   @ManyToOne(() => Type, (type) => type.subTypes)
   @JoinColumn({ name: 'type_id' })
   type: Type;
+
+  @ManyToOne(() => DesignType, (designType) => designType.subTypes, {
+    nullable: true,
+  })
+  @JoinColumn({ name: 'design_type_id' })
+  designType: DesignType;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

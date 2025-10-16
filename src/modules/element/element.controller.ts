@@ -173,6 +173,10 @@ export class ElementController {
         elementResponseDto.subType = {
           id: element.subType.id,
           name: element.subType.name,
+          designType: {
+            id: element.subType.designType?.id,
+            name: element.subType.designType?.name,
+          },
         };
         elementResponseDto.sapReference = element.sapReference;
         elementResponseDto.norm = {

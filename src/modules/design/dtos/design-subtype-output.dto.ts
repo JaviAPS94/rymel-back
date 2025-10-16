@@ -14,6 +14,13 @@ export class DesignSubTypeOutputDto {
   name: string;
 
   @ApiProperty({
+    description: 'The code of the design subtype',
+    example: 'OD-001',
+    nullable: true,
+  })
+  code: string;
+
+  @ApiProperty({
     description: 'The ID of the parent design type',
     example: 1,
   })

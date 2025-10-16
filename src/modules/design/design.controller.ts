@@ -5,6 +5,7 @@ import {
   HttpException,
   Param,
   Post,
+  Put,
 } from '@nestjs/common';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { DesignTypeService } from './services/design-type.service';
@@ -19,6 +20,11 @@ import { CreateDesignDto } from './dtos/create-desing.dto';
 import { DesignService } from './services/design.service';
 import { ValidationPipe } from '../../common/pipes/validation.pipe';
 import { DesignFiltersPaginatedDto } from './dtos/designs-filters-paginated.dto';
+import {
+  DesignResponseDto,
+  SubDesignResponseDto,
+} from './dtos/design-response.dto';
+import { Design } from './entities/design.entity';
 
 @ApiTags('Design')
 @Controller('design')
@@ -103,6 +109,7 @@ export class DesignController {
         designSubTypeDto.name = designSubType.name;
         designSubTypeDto.designTypeId = designSubType.designType?.id;
         designSubTypeDto.designTypeName = designSubType.designType?.name;
+        designSubTypeDto.code = designSubType.code;
         return designSubTypeDto;
       });
     } catch (error) {
@@ -137,6 +144,7 @@ export class DesignController {
         designSubTypeDto.name = designSubType.name;
         designSubTypeDto.designTypeId = designSubType.designType?.id;
         designSubTypeDto.designTypeName = designSubType.designType?.name;
+        designSubTypeDto.code = designSubType.code;
         return designSubTypeDto;
       });
     } catch (error) {
@@ -294,9 +302,54 @@ export class DesignController {
   })
   async createDesign(
     @Body(ValidationPipe) createDesignDto: CreateDesignDto,
+  ): Promise<{ id: number }> {
+    try {
+      const design = await this.designService.createDesign(createDesignDto);
+      return design;
+    } catch (error) {
+      throw new HttpException(error.message, error.getStatus());
+    }
+  }
+
+  @Put('/:id')
+  @ApiResponse({
+    status: 200,
+    description: 'Design updated successfully.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failed. Invalid input data.',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Validation failed',
+        },
+        errors: {
+          type: 'object',
+          example: {
+            name: ['name should not be empty', 'name must be a string'],
+            code: ['code should not be empty', 'code must be a string'],
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Design not found.',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error.',
+  })
+  async updateDesign(
+    @Param('id') id: number,
+    @Body(ValidationPipe) updateDesignDto: CreateDesignDto,
   ): Promise<void> {
     try {
-      await this.designService.createDesign(createDesignDto);
+      await this.designService.updateDesign(id, updateDesignDto);
     } catch (error) {
       throw new HttpException(error.message, error.getStatus());
     }
@@ -321,6 +374,52 @@ export class DesignController {
       return designs;
     } catch (error) {
       console.error('Error in getAllDesignsPaginated:', error);
+      throw new HttpException(error.message, error?.getStatus() ?? 500);
+    }
+  }
+
+  @Get('/by-id/:id')
+  @ApiResponse({
+    status: 200,
+    description: 'The record has been successfully retrieved.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Design not found.',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error.',
+  })
+  async getDesignById(@Param('id') id: number): Promise<DesignResponseDto> {
+    try {
+      const design = await this.designService.findById(id);
+
+      const designDto = new DesignResponseDto();
+      designDto.id = design.id;
+      designDto.name = design.name;
+      designDto.code = design.code;
+      designDto.createdAt = design.createdAt;
+      designDto.updatedAt = design.updatedAt;
+      designDto.deletedAt = design.deletedAt;
+      designDto.designSubType = design.designSubType;
+      designDto.designElements = design.designElements;
+
+      designDto.subDesigns = (design.subDesigns || []).map((subDesign) => {
+        const subDesignDto = new SubDesignResponseDto();
+        subDesignDto.id = subDesign.id;
+        subDesignDto.name = subDesign.name;
+        subDesignDto.code = subDesign.code;
+        subDesignDto.createdAt = subDesign.createdAt;
+        subDesignDto.updatedAt = subDesign.updatedAt;
+        subDesignDto.deletedAt = subDesign.deletedAt;
+        subDesignDto.data = JSON.parse(subDesign.data);
+
+        return subDesignDto;
+      });
+
+      return designDto;
+    } catch (error) {
       throw new HttpException(error.message, error?.getStatus() ?? 500);
     }
   }
