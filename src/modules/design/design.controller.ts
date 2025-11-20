@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpException,
   Param,
@@ -24,7 +25,6 @@ import {
   DesignResponseDto,
   SubDesignResponseDto,
 } from './dtos/design-response.dto';
-import { Design } from './entities/design.entity';
 
 @ApiTags('Design')
 @Controller('design')
@@ -419,6 +419,27 @@ export class DesignController {
       });
 
       return designDto;
+    } catch (error) {
+      throw new HttpException(error.message, error?.getStatus() ?? 500);
+    }
+  }
+
+  @Delete('/:id')
+  @ApiResponse({
+    status: 200,
+    description: 'Design deleted successfully.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Design not found.',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error.',
+  })
+  async deleteById(@Param('id') id: number): Promise<void> {
+    try {
+      await this.designService.deleteById(id);
     } catch (error) {
       throw new HttpException(error.message, error?.getStatus() ?? 500);
     }

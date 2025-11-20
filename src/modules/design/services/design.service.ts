@@ -94,7 +94,8 @@ export class DesignService {
       .leftJoinAndSelect('element.norm', 'norm')
       .leftJoinAndSelect('norm.country', 'country')
       .leftJoinAndSelect('design.subDesigns', 'subDesigns')
-      .where('country.id = :country', { country });
+      .where('country.id = :country', { country })
+      .andWhere('design.deletedAt IS NULL');
 
     if (name && name.trim() !== '') {
       queryBuilder.andWhere('norm.name LIKE :name', { name: `%${name}%` });
@@ -118,7 +119,9 @@ export class DesignService {
 
     queryBuilder.skip((page - 1) * limit).take(limit);
 
-    const [data, total] = await queryBuilder.getManyAndCount();
+    const [data, total] = await queryBuilder
+      .orderBy('design.createdAt', 'DESC')
+      .getManyAndCount();
 
     return {
       data,
@@ -131,7 +134,7 @@ export class DesignService {
 
   async findById(id: number): Promise<Design> {
     const design = await this.dataSource.getRepository(Design).findOne({
-      where: { id },
+      where: { id, deletedAt: null },
       relations: {
         designSubType: {
           designType: true,
@@ -162,7 +165,7 @@ export class DesignService {
 
     try {
       const design = await queryRunner.manager.findOne(Design, {
-        where: { id },
+        where: { id, deletedAt: null },
       });
 
       if (!design) {
@@ -202,7 +205,6 @@ export class DesignService {
         }
       }
 
-      // Add the new sub-designs
       if (designData.subDesigns && designData.subDesigns.length > 0) {
         for (const subDesignData of designData.subDesigns) {
           const subDesign = new SubDesign();
@@ -214,8 +216,40 @@ export class DesignService {
         }
       }
 
-      // Finally, save the updated design
       await queryRunner.manager.save(design);
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async deleteById(id: number): Promise<void> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const design = await queryRunner.manager.findOne(Design, {
+        where: { id },
+      });
+
+      if (!design) {
+        throw new NotFoundException('Design not found');
+      }
+
+      const deletedAt = new Date();
+
+      await queryRunner.manager.update(
+        SubDesign,
+        { design: { id } },
+        { deletedAt },
+      );
+
+      await queryRunner.manager.update(Design, id, { deletedAt });
 
       await queryRunner.commitTransaction();
     } catch (error) {

@@ -90,7 +90,9 @@ export class ElementService {
 
     queryBuilder.skip((page - 1) * limit).take(limit);
 
-    const [data, total] = await queryBuilder.getManyAndCount();
+    const [data, total] = await queryBuilder
+      .orderBy('element.createdAt', 'DESC')
+      .getManyAndCount();
 
     return {
       data: data.map((element) => ElementPaginatedMapper.toDto(element)),
