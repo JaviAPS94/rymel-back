@@ -4,6 +4,8 @@ import { DesignFunctionService } from './services/design-function.service';
 import { CreateDesignFunctionDto } from './dtos/create-design-function.dto';
 import { CalculateFunctionDto } from './dtos/calculate-function.dto';
 import { CalculateFunctionResponseDto } from './dtos/calculate-function-response.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../auth/enums/role.enum';
 
 @ApiTags('Design Functions')
 @Controller('design-functions')
@@ -11,6 +13,7 @@ export class DesignFunctionController {
   constructor(private readonly designFunctionService: DesignFunctionService) {}
 
   @Post()
+  @Roles(Role.ADMIN, Role.DESIGN)
   @ApiResponse({
     status: 201,
     description: 'The design function has been successfully created.',
@@ -35,6 +38,7 @@ export class DesignFunctionController {
   }
 
   @Post('calculate')
+  @Roles(Role.ADMIN, Role.DESIGN)
   @ApiResponse({
     status: 200,
     description: 'The functions have been successfully calculated.',

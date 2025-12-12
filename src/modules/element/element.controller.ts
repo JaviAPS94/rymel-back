@@ -13,6 +13,8 @@ import { SpecialItemOutputDto } from './dtos/special-item-output.dto';
 import { SpecialItemService } from './services/special-item.service';
 import { FiltersPaginatedDto } from './dtos/filters-paginated.dto';
 import { ElementsByIdsDto } from './dtos/elements-by-ids.dto';
+import { Role } from '../auth/enums/role.enum';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('Element')
 @Controller('element')
@@ -23,6 +25,7 @@ export class ElementController {
   ) {}
 
   @Get('/by-filters')
+  @Roles(Role.ADMIN, Role.DESIGN, Role.NORM)
   @ApiResponse({
     status: 200,
     description: 'The records have been successfully retrieved.',
@@ -69,6 +72,7 @@ export class ElementController {
   }
 
   @Get('/by-filters-paginated')
+  @Roles(Role.ADMIN, Role.DESIGN, Role.NORM)
   @ApiResponse({
     status: 200,
     description: 'The records have been successfully retrieved.',
@@ -93,6 +97,7 @@ export class ElementController {
   }
 
   @Post('/by-filters-paginated')
+  @Roles(Role.ADMIN, Role.DESIGN, Role.NORM)
   @ApiResponse({
     status: 200,
     description: 'The records have been successfully retrieved.',
@@ -121,6 +126,7 @@ export class ElementController {
   }
 
   @Get('/special-items')
+  @Roles(Role.ADMIN, Role.DESIGN, Role.NORM)
   @ApiResponse({
     status: 200,
     description: 'The records have been successfully retrieved.',
@@ -144,6 +150,7 @@ export class ElementController {
   }
 
   @Post('/by-ids')
+  @Roles(Role.ADMIN, Role.DESIGN, Role.NORM)
   @ApiResponse({
     status: 200,
     description: 'The elements have been successfully retrieved.',

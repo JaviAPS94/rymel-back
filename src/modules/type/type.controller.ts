@@ -2,6 +2,8 @@ import { Controller, Get } from '@nestjs/common';
 import { TypeService } from './type.service';
 import { Type } from './entities/type.entity';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Role } from '../auth/enums/role.enum';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('Type')
 @Controller('type')
@@ -9,6 +11,7 @@ export class TypeController {
   constructor(private readonly typeService: TypeService) {}
 
   @Get()
+  @Roles(Role.ADMIN, Role.DESIGN, Role.NORM)
   @ApiResponse({
     status: 200,
     description: 'The records have been successfully retrieved.',

@@ -20,6 +20,8 @@ import { TransformAndValidatePipe } from './pipes/transform-data.pipe';
 import { NormSpecificationService } from './services/norm-specification.service';
 import { NormSpecificationOutputDto } from './dtos/norm-specification-output.dto';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { Role } from '../auth/enums/role.enum';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('Norm')
 @Controller('norm')
@@ -30,6 +32,7 @@ export class NormController {
   ) {}
 
   @Post()
+  @Roles(Role.ADMIN, Role.NORM)
   @UseInterceptors(
     AnyFilesInterceptor({
       storage: diskStorage({
@@ -68,6 +71,7 @@ export class NormController {
   }
 
   @Get('/specifications')
+  @Roles(Role.ADMIN, Role.NORM)
   @ApiResponse({
     status: 200,
     description: 'The records have been successfully retrieved.',
@@ -94,6 +98,7 @@ export class NormController {
   }
 
   @Get('/all-paginated')
+  @Roles(Role.ADMIN, Role.NORM)
   @ApiResponse({
     status: 200,
     description: 'The records have been successfully retrieved.',
@@ -111,6 +116,7 @@ export class NormController {
   }
 
   @Get('/:id')
+  @Roles(Role.ADMIN, Role.NORM)
   @ApiResponse({
     status: 200,
     description: 'The record have been successfully retrieved.',

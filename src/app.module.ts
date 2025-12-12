@@ -11,6 +11,11 @@ import { SubtypeModule } from './modules/subtype/subtype.module';
 import { AccesoryModule } from './modules/accesory/accesory.module';
 import { SemiFinishedModule } from './modules/semi-finished/semiFinished.module';
 import { DesignModule } from './modules/design/design.module';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+import { RolesGuard } from './modules/auth/guards/roles.guard';
+import { UsersModule } from './modules/users/user.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -32,7 +37,18 @@ import { DesignModule } from './modules/design/design.module';
     AccesoryModule,
     SemiFinishedModule,
     DesignModule,
+    UsersModule,
+    AuthModule,
   ],
-  providers: [],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+  ],
 })
 export class AppModule {}

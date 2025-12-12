@@ -25,6 +25,8 @@ import {
   DesignResponseDto,
   SubDesignResponseDto,
 } from './dtos/design-response.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../auth/enums/role.enum';
 
 @ApiTags('Design')
 @Controller('design')
@@ -37,6 +39,7 @@ export class DesignController {
   ) {}
 
   @Get('/types')
+  @Roles(Role.ADMIN, Role.DESIGN)
   @ApiResponse({
     status: 200,
     description: 'The records have been successfully retrieved.',
@@ -62,6 +65,7 @@ export class DesignController {
   }
 
   @Get('/types/:id')
+  @Roles(Role.ADMIN, Role.DESIGN)
   @ApiResponse({
     status: 200,
     description: 'The record has been successfully retrieved.',
@@ -90,6 +94,7 @@ export class DesignController {
   }
 
   @Get('/subtypes')
+  @Roles(Role.ADMIN, Role.DESIGN)
   @ApiResponse({
     status: 200,
     description: 'The records have been successfully retrieved.',
@@ -118,6 +123,7 @@ export class DesignController {
   }
 
   @Get('/subtypes/by-type/:typeId')
+  @Roles(Role.ADMIN, Role.DESIGN)
   @ApiResponse({
     status: 200,
     description: 'The records have been successfully retrieved.',
@@ -153,6 +159,7 @@ export class DesignController {
   }
 
   @Get('/subtypes/:id')
+  @Roles(Role.ADMIN, Role.DESIGN)
   @ApiResponse({
     status: 200,
     description: 'The record has been successfully retrieved.',
@@ -183,6 +190,7 @@ export class DesignController {
   }
 
   @Get('/subtypes/:id/with-functions')
+  @Roles(Role.ADMIN, Role.DESIGN)
   @ApiResponse({
     status: 200,
     description:
@@ -232,6 +240,7 @@ export class DesignController {
   }
 
   @Get('/templates/:subTypeId')
+  @Roles(Role.ADMIN, Role.DESIGN)
   @ApiResponse({
     status: 200,
     description: 'The templates for the specified subtype have been retrieved.',
@@ -272,6 +281,7 @@ export class DesignController {
   }
 
   @Post()
+  @Roles(Role.ADMIN, Role.DESIGN)
   @ApiResponse({
     status: 201,
     description: 'Design created successfully.',
@@ -312,6 +322,7 @@ export class DesignController {
   }
 
   @Put('/:id')
+  @Roles(Role.ADMIN, Role.DESIGN)
   @ApiResponse({
     status: 200,
     description: 'Design updated successfully.',
@@ -356,6 +367,7 @@ export class DesignController {
   }
 
   @Post('/by-filters-paginated')
+  @Roles(Role.ADMIN, Role.DESIGN)
   @ApiResponse({
     status: 200,
     description: 'The records have been successfully retrieved.',
@@ -379,6 +391,7 @@ export class DesignController {
   }
 
   @Get('/by-id/:id')
+  @Roles(Role.ADMIN, Role.DESIGN)
   @ApiResponse({
     status: 200,
     description: 'The record has been successfully retrieved.',
@@ -425,6 +438,7 @@ export class DesignController {
   }
 
   @Delete('/:id')
+  @Roles(Role.ADMIN, Role.DESIGN)
   @ApiResponse({
     status: 200,
     description: 'Design deleted successfully.',

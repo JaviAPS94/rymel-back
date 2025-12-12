@@ -28,8 +28,17 @@ async function bootstrap() {
     .addTag('Your API Tag')
     .build();
 
+  const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174'];
+
   app.enableCors({
-    origin: 'http://localhost:5173', // Replace with your frontend domain
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true, // If you need to send cookies
   });

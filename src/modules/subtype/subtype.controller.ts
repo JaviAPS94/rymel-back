@@ -4,6 +4,8 @@ import { SubTypeService } from './subtype.service';
 import { FieldDto, SubTypeWithFieldsDto } from './dtos/subtype-with-fields.dto';
 import { SubType } from './entities/subtype.entity';
 import { NotFoundException } from 'src/common/exceptions/custom.exception';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../auth/enums/role.enum';
 
 @ApiTags('SubType')
 @Controller('sub-type')
@@ -11,6 +13,7 @@ export class SubTypeController {
   constructor(private readonly subTypeService: SubTypeService) {}
 
   @Get('/all')
+  @Roles(Role.ADMIN, Role.DESIGN, Role.NORM)
   @ApiResponse({
     status: 200,
     description: 'The records have been successfully retrieved.',
@@ -34,6 +37,7 @@ export class SubTypeController {
   }
 
   @Get('/:id')
+  @Roles(Role.ADMIN, Role.DESIGN, Role.NORM)
   @ApiResponse({
     status: 200,
     description: 'The record has been successfully retrieved.',
@@ -66,6 +70,7 @@ export class SubTypeController {
   }
 
   @Get('/:typeId/type')
+  @Roles(Role.ADMIN, Role.DESIGN, Role.NORM)
   @ApiResponse({
     status: 200,
     description: 'The records have been successfully retrieved.',

@@ -13,6 +13,9 @@ import { UpdateCountryDto } from './dtos/update-country.dto';
 import { CountryOutputDto } from './dtos/country-output.dto';
 import { Country } from './entities/country.entity';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Role } from '../auth/enums/role.enum';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Country')
 @Controller('countries')
@@ -20,11 +23,13 @@ export class CountryController {
   constructor(private readonly countryService: CountryService) {}
 
   @Post()
+  @Roles(Role.ADMIN)
   create(@Body() createCountryDto: CreateCountryDto) {
     return this.countryService.create(createCountryDto);
   }
 
   @Get()
+  @Public()
   @ApiResponse({
     status: 200,
     description: 'The records have been successfully retrieved.',
@@ -47,6 +52,7 @@ export class CountryController {
   }
 
   @Get(':id')
+  @Public()
   @ApiResponse({
     status: 200,
     description: 'The record by id have been successfully retrieved.',
@@ -65,6 +71,7 @@ export class CountryController {
   }
 
   @Patch(':id')
+  @Roles(Role.ADMIN)
   @ApiResponse({
     status: 200,
     description: 'The record has been successfully updated.',
@@ -78,6 +85,7 @@ export class CountryController {
   }
 
   @Delete(':id')
+  @Roles(Role.ADMIN)
   @ApiResponse({
     status: 200,
     description: 'The record has been successfully deleted.',
