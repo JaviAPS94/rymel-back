@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { DesignSubTypeFunction } from './design-subtype-function.entity';
+import { TemplateType } from '../../../common/enums';
 
 @Entity('design_function')
 export class DesignFunction {
@@ -36,6 +37,13 @@ export class DesignFunction {
     (designSubTypeFunction) => designSubTypeFunction.designSubType,
   )
   designSubTypeFunctions: DesignSubTypeFunction[];
+
+  @Column({
+    type: 'nvarchar',
+    length: 50,
+    default: TemplateType.DESIGN,
+  })
+  type: TemplateType;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

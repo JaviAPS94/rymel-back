@@ -4,10 +4,13 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { DesignSubType } from './design-subtype.entity';
+import { Sheet } from './sheet.entity';
+import { TemplateType } from '../../../common/enums';
 
 @Entity()
 export class Template {
@@ -23,15 +26,19 @@ export class Template {
   @Column({ type: 'nvarchar', nullable: true })
   description?: string;
 
-  @Column({ type: 'text', nullable: true })
-  cellsStyles?: string;
-
-  @Column({ type: 'text' })
-  cells?: string;
+  @OneToMany(() => Sheet, (sheet) => sheet.template)
+  sheets: Sheet[];
 
   @ManyToOne(() => DesignSubType, (designSubType) => designSubType.templates)
   @JoinColumn({ name: 'design_sub_type_id' })
   designSubType: DesignSubType;
+
+  @Column({
+    type: 'nvarchar',
+    length: 50,
+    default: TemplateType.DESIGN,
+  })
+  type: TemplateType;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

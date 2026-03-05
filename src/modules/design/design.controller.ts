@@ -7,6 +7,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { DesignTypeService } from './services/design-type.service';
@@ -14,19 +15,16 @@ import { DesignSubTypeService } from './services/design-subtype.service';
 import { DesignTypeOutputDto } from './dtos/design-type-output.dto';
 import { DesignSubTypeOutputDto } from './dtos/design-subtype-output.dto';
 import { DesignSubTypeWithFunctionsDto } from './dtos/design-subtype-with-functions.dto';
-import { DesignFunctionOutputDto } from './dtos/design-function-output.dto';
 import { TemplateResponseDto } from './dtos/template-response.dto';
 import { TemplateService } from './services/template.service';
 import { CreateDesignDto } from './dtos/create-desing.dto';
 import { DesignService } from './services/design.service';
 import { ValidationPipe } from '../../common/pipes/validation.pipe';
 import { DesignFiltersPaginatedDto } from './dtos/designs-filters-paginated.dto';
-import {
-  DesignResponseDto,
-  SubDesignResponseDto,
-} from './dtos/design-response.dto';
+import { DesignResponseDto } from './dtos/design-response.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
+import { TemplateType } from '../../common/enums';
 
 @ApiTags('Design')
 @Controller('design')
@@ -53,12 +51,9 @@ export class DesignController {
   async getAllDesignTypes(): Promise<DesignTypeOutputDto[]> {
     try {
       const designTypes = await this.designTypeService.findAll();
-      return designTypes.map((designType) => {
-        const designTypeDto = new DesignTypeOutputDto();
-        designTypeDto.id = designType.id;
-        designTypeDto.name = designType.name;
-        return designTypeDto;
-      });
+      return designTypes.map(
+        (designType) => new DesignTypeOutputDto(designType),
+      );
     } catch (error) {
       throw new HttpException(error.message, error?.getStatus() ?? 500);
     }
@@ -84,10 +79,7 @@ export class DesignController {
   ): Promise<DesignTypeOutputDto> {
     try {
       const designType = await this.designTypeService.findById(id);
-      const designTypeDto = new DesignTypeOutputDto();
-      designTypeDto.id = designType.id;
-      designTypeDto.name = designType.name;
-      return designTypeDto;
+      return new DesignTypeOutputDto(designType);
     } catch (error) {
       throw new HttpException(error.message, error?.getStatus() ?? 500);
     }
@@ -108,15 +100,9 @@ export class DesignController {
   async getAllDesignSubTypes(): Promise<DesignSubTypeOutputDto[]> {
     try {
       const designSubTypes = await this.designSubTypeService.findAll();
-      return designSubTypes.map((designSubType) => {
-        const designSubTypeDto = new DesignSubTypeOutputDto();
-        designSubTypeDto.id = designSubType.id;
-        designSubTypeDto.name = designSubType.name;
-        designSubTypeDto.designTypeId = designSubType.designType?.id;
-        designSubTypeDto.designTypeName = designSubType.designType?.name;
-        designSubTypeDto.code = designSubType.code;
-        return designSubTypeDto;
-      });
+      return designSubTypes.map(
+        (designSubType) => new DesignSubTypeOutputDto(designSubType),
+      );
     } catch (error) {
       throw new HttpException(error.message, error?.getStatus() ?? 500);
     }
@@ -144,15 +130,9 @@ export class DesignController {
     try {
       const designSubTypes =
         await this.designSubTypeService.findByTypeId(typeId);
-      return designSubTypes.map((designSubType) => {
-        const designSubTypeDto = new DesignSubTypeOutputDto();
-        designSubTypeDto.id = designSubType.id;
-        designSubTypeDto.name = designSubType.name;
-        designSubTypeDto.designTypeId = designSubType.designType?.id;
-        designSubTypeDto.designTypeName = designSubType.designType?.name;
-        designSubTypeDto.code = designSubType.code;
-        return designSubTypeDto;
-      });
+      return designSubTypes.map(
+        (designSubType) => new DesignSubTypeOutputDto(designSubType),
+      );
     } catch (error) {
       throw new HttpException(error.message, error?.getStatus() ?? 500);
     }
@@ -178,12 +158,7 @@ export class DesignController {
   ): Promise<DesignSubTypeOutputDto> {
     try {
       const designSubType = await this.designSubTypeService.findById(id);
-      const designSubTypeDto = new DesignSubTypeOutputDto();
-      designSubTypeDto.id = designSubType.id;
-      designSubTypeDto.name = designSubType.name;
-      designSubTypeDto.designTypeId = designSubType.designType?.id;
-      designSubTypeDto.designTypeName = designSubType.designType?.name;
-      return designSubTypeDto;
+      return new DesignSubTypeOutputDto(designSubType);
     } catch (error) {
       throw new HttpException(error.message, error?.getStatus() ?? 500);
     }
@@ -211,29 +186,7 @@ export class DesignController {
     try {
       const designSubType =
         await this.designSubTypeService.findByIdWithFunctions(id);
-
-      const dto = new DesignSubTypeWithFunctionsDto();
-      dto.id = designSubType.id;
-      dto.name = designSubType.name;
-      dto.designTypeId = designSubType.designType?.id;
-      dto.designTypeName = designSubType.designType?.name;
-
-      // Extract and map functions from the designSubTypeFunctions relation
-      dto.designFunctions =
-        designSubType.designSubTypeFunctions?.map((relation) => {
-          const functionDto = new DesignFunctionOutputDto();
-          const func = relation.designFunction;
-          functionDto.id = func.id;
-          functionDto.name = func.name;
-          functionDto.expression = func.expression;
-          functionDto.variables = func.variables;
-          functionDto.description = func.description;
-          functionDto.code = func.code;
-          functionDto.constants = JSON.parse(func.constants || '{}');
-          return functionDto;
-        }) || [];
-
-      return dto;
+      return new DesignSubTypeWithFunctionsDto(designSubType);
     } catch (error) {
       throw new HttpException(error.message, error?.getStatus() ?? 500);
     }
@@ -257,24 +210,21 @@ export class DesignController {
   })
   async getTemplatesBySubTypeId(
     @Param('subTypeId') subTypeId: number,
+    @Query('type') type?: TemplateType,
   ): Promise<TemplateResponseDto[]> {
     try {
-      const templateBySubType =
-        await this.templateService.findBySubTypeId(subTypeId);
+      const templateType = type || TemplateType.DESIGN;
+      const templateBySubType = await this.templateService.findBySubTypeId(
+        subTypeId,
+        templateType,
+      );
       if (!templateBySubType) {
         throw new HttpException('Template not found', 404);
       }
 
-      return templateBySubType.map((template) => {
-        const templateDto = new TemplateResponseDto();
-        templateDto.id = template.id;
-        templateDto.name = template.name;
-        templateDto.code = template.code;
-        templateDto.description = template.description;
-        templateDto.cellsStyles = JSON.parse(template.cellsStyles);
-        templateDto.cells = JSON.parse(template.cells);
-        return templateDto;
-      });
+      return templateBySubType.map(
+        (template) => new TemplateResponseDto(template),
+      );
     } catch (error) {
       throw new HttpException(error.message, error?.getStatus() ?? 500);
     }
@@ -407,32 +357,9 @@ export class DesignController {
   async getDesignById(@Param('id') id: number): Promise<DesignResponseDto> {
     try {
       const design = await this.designService.findById(id);
-
-      const designDto = new DesignResponseDto();
-      designDto.id = design.id;
-      designDto.name = design.name;
-      designDto.code = design.code;
-      designDto.createdAt = design.createdAt;
-      designDto.updatedAt = design.updatedAt;
-      designDto.deletedAt = design.deletedAt;
-      designDto.designSubType = design.designSubType;
-      designDto.designElements = design.designElements;
-
-      designDto.subDesigns = (design.subDesigns || []).map((subDesign) => {
-        const subDesignDto = new SubDesignResponseDto();
-        subDesignDto.id = subDesign.id;
-        subDesignDto.name = subDesign.name;
-        subDesignDto.code = subDesign.code;
-        subDesignDto.createdAt = subDesign.createdAt;
-        subDesignDto.updatedAt = subDesign.updatedAt;
-        subDesignDto.deletedAt = subDesign.deletedAt;
-        subDesignDto.data = JSON.parse(subDesign.data);
-
-        return subDesignDto;
-      });
-
-      return designDto;
+      return new DesignResponseDto(design);
     } catch (error) {
+      console.error('Error in getDesignById:', error);
       throw new HttpException(error.message, error?.getStatus() ?? 500);
     }
   }

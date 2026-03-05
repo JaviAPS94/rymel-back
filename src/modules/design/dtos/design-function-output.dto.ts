@@ -1,4 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { TemplateType } from 'src/common/enums';
+import { DesignFunction } from '../entities/design-function.entity';
 
 export class DesignFunctionOutputDto {
   @ApiProperty({
@@ -44,4 +46,17 @@ export class DesignFunctionOutputDto {
     required: false,
   })
   description?: string;
+
+  type: TemplateType;
+
+  constructor(designFunction: DesignFunction) {
+    this.id = designFunction.id;
+    this.name = designFunction.name;
+    this.expression = designFunction.expression;
+    this.variables = designFunction.variables;
+    this.description = designFunction.description;
+    this.code = designFunction.code;
+    this.constants = JSON.parse(designFunction.constants || '{}');
+    this.type = designFunction.type;
+  }
 }

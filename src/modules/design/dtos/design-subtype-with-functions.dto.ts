@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { DesignFunctionOutputDto } from './design-function-output.dto';
+import { DesignSubType } from '../entities/design-subtype.entity';
 
 export class DesignSubTypeWithFunctionsDto {
   @ApiProperty({
@@ -31,4 +32,15 @@ export class DesignSubTypeWithFunctionsDto {
     type: [DesignFunctionOutputDto],
   })
   designFunctions: DesignFunctionOutputDto[];
+
+  constructor(designSubType: DesignSubType) {
+    this.id = designSubType.id;
+    this.name = designSubType.name;
+    this.designTypeId = designSubType.designType?.id;
+    this.designTypeName = designSubType.designType?.name;
+    this.designFunctions =
+      designSubType.designSubTypeFunctions?.map(
+        (relation) => new DesignFunctionOutputDto(relation.designFunction),
+      ) || [];
+  }
 }

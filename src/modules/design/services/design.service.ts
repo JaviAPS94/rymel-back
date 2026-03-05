@@ -7,6 +7,8 @@ import { Element } from 'src/modules/element/entities/element.entity';
 import { SubDesign } from '../entities/sub-design.entity';
 import { DesignSubType } from '../entities/design-subtype.entity';
 import { DesignFiltersPaginatedDto } from '../dtos/designs-filters-paginated.dto';
+import { Cost } from 'src/modules/costs/entities/cost.entity';
+import { SubCost } from 'src/modules/costs/entities/sub-cost.entity';
 
 @Injectable()
 export class DesignService {
@@ -57,6 +59,28 @@ export class DesignService {
           subDesign.design = designDb;
           subDesign.data = JSON.stringify(subDesignData.data);
           await queryRunner.manager.save(subDesign);
+        }
+      }
+
+      // Save cost and sub-costs if provided
+      if (designData.cost) {
+        const cost = queryRunner.manager.create('Cost', {
+          name: designData.cost.name,
+          code: designData.cost.code,
+          design: designDb,
+        });
+        const costDb = await queryRunner.manager.save(cost);
+
+        if (designData.cost.subCosts && designData.cost.subCosts.length > 0) {
+          for (const subCostData of designData.cost.subCosts) {
+            const subCost = queryRunner.manager.create('SubCost', {
+              name: subCostData.name,
+              code: subCostData.code,
+              data: JSON.stringify(subCostData.data),
+              cost: costDb,
+            });
+            await queryRunner.manager.save(subCost);
+          }
         }
       }
 
@@ -148,6 +172,9 @@ export class DesignService {
           },
         },
         subDesigns: true,
+        cost: {
+          subCosts: true,
+        },
       },
     });
 
@@ -213,6 +240,35 @@ export class DesignService {
           subDesign.design = design;
           subDesign.data = JSON.stringify(subDesignData.data);
           await queryRunner.manager.save(subDesign);
+        }
+      }
+
+      // Update cost and sub-costs
+      if (designData.cost) {
+        const cost = await queryRunner.manager.findOne(Cost, {
+          where: { design: { id } },
+        });
+
+        cost.name = designData.cost.name;
+        cost.code = designData.cost.code;
+
+        const costDb = await queryRunner.manager.save(cost);
+
+        // Remove existing sub-costs
+        await queryRunner.manager.delete(SubCost, {
+          cost: { id: costDb.id },
+        });
+
+        if (designData.cost.subCosts && designData.cost.subCosts.length > 0) {
+          for (const subCostData of designData.cost.subCosts) {
+            const subCost = queryRunner.manager.create(SubCost, {
+              name: subCostData.name,
+              code: subCostData.code,
+              data: JSON.stringify(subCostData.data),
+              cost: costDb,
+            });
+            await queryRunner.manager.save(subCost);
+          }
         }
       }
 

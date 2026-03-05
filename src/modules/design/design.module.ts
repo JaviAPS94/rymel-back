@@ -11,6 +11,7 @@ import { DesignFunctionController } from './design-function.controller';
 import { HttpModule } from '@nestjs/axios';
 import { TemplateService } from './services/template.service';
 import { Template } from './entities/template.entity';
+import { Sheet } from './entities/sheet.entity';
 import { DesignService } from './services/design.service';
 
 @Module({
@@ -21,6 +22,7 @@ import { DesignService } from './services/design.service';
       DesignSubType,
       DesignFunction,
       Template,
+      Sheet,
     ]),
   ],
   controllers: [DesignController, DesignFunctionController],

@@ -38,6 +38,34 @@ export class CreateSubDesignDto {
   data: Record<string, unknown>;
 }
 
+export class CreateCostDto {
+  @ApiProperty({
+    example: 'Cost Name',
+    required: true,
+  })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @ApiProperty({
+    example: 'Cost Code',
+    required: true,
+  })
+  @IsString()
+  @IsNotEmpty()
+  code: string;
+
+  @ApiProperty({
+    type: [CreateSubDesignDto],
+    required: false,
+  })
+  @IsNotEmpty()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateSubDesignDto)
+  subCosts: CreateSubDesignDto[];
+}
+
 export class CreateDesignDto {
   @ApiProperty({
     example: 'Design Name',
@@ -81,4 +109,12 @@ export class CreateDesignDto {
   @IsNumber()
   @IsNotEmpty()
   designSubtypeId: number;
+
+  @ApiProperty({
+    type: CreateCostDto,
+    required: true,
+  })
+  @ValidateNested()
+  @Type(() => CreateCostDto)
+  cost: CreateCostDto;
 }

@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { DesignSubType } from '../entities/design-subtype.entity';
 
 export class DesignSubTypeOutputDto {
   @ApiProperty({
@@ -31,4 +32,12 @@ export class DesignSubTypeOutputDto {
     example: 'Distribution',
   })
   designTypeName: string;
+
+  constructor(designSubType: DesignSubType) {
+    this.id = designSubType.id;
+    this.name = designSubType.name;
+    this.designTypeId = designSubType.designType?.id;
+    this.designTypeName = designSubType.designType?.name;
+    this.code = designSubType.code;
+  }
 }
