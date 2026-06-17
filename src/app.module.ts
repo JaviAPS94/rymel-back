@@ -17,6 +17,7 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
 import { UsersModule } from './modules/users/user.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CostModule } from './modules/costs/cost.module';
+import { BillOfMaterialsModule } from './modules/bill-of-materials/bill-of-materials.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { CostModule } from './modules/costs/cost.module';
     UsersModule,
     AuthModule,
     CostModule,
+    BillOfMaterialsModule,
   ],
   providers: [
     {

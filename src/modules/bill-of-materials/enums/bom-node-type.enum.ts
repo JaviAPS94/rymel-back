@@ -1,0 +1,5 @@
+export enum BomNodeType {
+  STANDARD = 'STANDARD',
+  CRITICAL = 'CRITICAL',
+  REFERENCE = 'REFERENCE',
+}
