@@ -57,6 +57,33 @@ export class BillOfMaterialsController {
     }
   }
 
+  @Get('search')
+  @Roles(Role.ADMIN, Role.NORM, Role.DESIGN)
+  @ApiResponse({
+    status: 200,
+    description: 'BOM cuyo código es prefijo del código buscado.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'No se encontró un BOM que coincida.',
+  })
+  async findByCode(@Query('code') code: string) {
+    try {
+      if (!code) {
+        throw new HttpException(
+          'El parámetro code es requerido',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      return await this.bomService.findByCode(code);
+    } catch (error: any) {
+      throw new HttpException(
+        error.message,
+        error.status ?? HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   @Get(':id')
   @Roles(Role.ADMIN, Role.NORM, Role.DESIGN)
   @ApiResponse({ status: 200, description: 'BOM con árbol completo.' })

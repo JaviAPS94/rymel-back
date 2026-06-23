@@ -51,6 +51,27 @@ export class BillOfMaterialsService {
     return { ...bom, nodes: this.buildTree(nodes) };
   }
 
+  async findByCode(code: string) {
+    const bom = await this.bomRepository
+      .createQueryBuilder('bom')
+      .where(`:code LIKE CONCAT(bom.code, '%')`, { code })
+      .andWhere('bom.deleted_at IS NULL')
+      .getOne();
+
+    if (!bom)
+      throw new NotFoundException(
+        `No se encontró un BOM que coincida con el código ${code}`,
+      );
+
+    const nodes = await this.nodeRepository.find({
+      where: { billOfMaterialsId: bom.id, deletedAt: IsNull() },
+      relations: ['semiFinished'],
+      order: { id: 'ASC' },
+    });
+
+    return { ...bom, nodes: this.buildTree(nodes) };
+  }
+
   async update(id: number, dto: UpdateBillOfMaterialsDto): Promise<void> {
     const bom = await this.bomRepository.findOne({
       where: { id, deletedAt: IsNull() },
