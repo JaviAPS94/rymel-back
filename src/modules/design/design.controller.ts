@@ -42,6 +42,20 @@ export class DesignController {
     private readonly designCodeGenerationService: DesignCodeGenerationService,
   ) {}
 
+  @Get('/code/is-available')
+  @Roles(Role.ADMIN, Role.DESIGN)
+  @ApiResponse({ status: 200, description: 'Returns whether the code is available.' })
+  async isDesignCodeAvailable(
+    @Query('code') code: string,
+  ): Promise<{ isAvailable: boolean }> {
+    try {
+      const isAvailable = await this.designCodeGenerationService.isCodeAvailable(code);
+      return { isAvailable };
+    } catch (error) {
+      throw new HttpException(error.message, error?.getStatus() ?? 500);
+    }
+  }
+
   @Post('/code/generate')
   @Roles(Role.ADMIN, Role.DESIGN)
   @ApiResponse({

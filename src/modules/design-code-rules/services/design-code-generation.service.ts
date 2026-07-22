@@ -14,7 +14,11 @@ import { DesignCodeSapSegmentMappingService } from './design-code-sap-segment-ma
 import { DesignCodeSuffixFormatService } from './design-code-suffix-format.service';
 import { DesignCodeSapSegmentName } from '../enums/design-code-sap-segment-name.enum';
 import { DesignCodePhaseType } from '../enums/design-code-phase-type.enum';
-import { GenerateDesignCodeDto } from '../dtos/generate-design-code.dto';
+import {
+  DesignCodeSegmentDto,
+  DesignCodeSegmentKey,
+  GenerateDesignCodeDto,
+} from '../dtos/generate-design-code.dto';
 import { assembleDesignCode, buildSuffixToken } from './design-code-generation.util';
 
 const MAX_DISAMBIGUATION_ATTEMPTS = 500;
@@ -23,6 +27,18 @@ const MAX_DISAMBIGUATION_ATTEMPTS = 500;
 // no ha etiquetado la celda correspondiente en el diseño (código de vista previa).
 const MISSING_SEGMENT_PLACEHOLDER = '??';
 
+const SEGMENT_LABELS: Record<DesignCodeSegmentKey, string> = {
+  [DesignCodeSegmentKey.FASE]: 'Fase',
+  [DesignCodeSegmentKey.POTENCIA]: 'Potencia',
+  [DesignCodeSegmentKey.TENSION_PRIMARIA]: 'Tensión primaria',
+  [DesignCodeSegmentKey.TENSION_SECUNDARIA]: 'Tensión secundaria',
+  [DesignCodeSegmentKey.ANIO]: 'Año',
+  [DesignCodeSegmentKey.MO]: 'MO',
+  [DesignCodeSegmentKey.MATERIAL_DEVANADO]: 'Material de devanado',
+  [DesignCodeSegmentKey.PAIS]: 'País',
+  [DesignCodeSegmentKey.SUFIJO_FINAL]: 'Sufijo final',
+};
+
 export interface GeneratedDesignCode {
   code: string;
   isDuplicate: boolean;
@@ -30,6 +46,8 @@ export interface GeneratedDesignCode {
   isComplete: boolean;
   moMissing: boolean;
   materialDevanadoMissing: boolean;
+  segments: DesignCodeSegmentDto[];
+  suffixPattern?: string;
 }
 
 @Injectable()
@@ -108,6 +126,67 @@ export class DesignCodeGenerationService {
       ? MISSING_SEGMENT_PLACEHOLDER
       : dto.materialDevanadoValue!.trim();
 
+    const buildSegments = (
+      yearValue: string,
+      moValue: string,
+      materialValue: string,
+    ): DesignCodeSegmentDto[] => [
+      new DesignCodeSegmentDto({
+        key: DesignCodeSegmentKey.FASE,
+        label: SEGMENT_LABELS[DesignCodeSegmentKey.FASE],
+        value: phase,
+        isMissing: false,
+      }),
+      new DesignCodeSegmentDto({
+        key: DesignCodeSegmentKey.POTENCIA,
+        label: SEGMENT_LABELS[DesignCodeSegmentKey.POTENCIA],
+        value: powerLetter,
+        isMissing: false,
+      }),
+      new DesignCodeSegmentDto({
+        key: DesignCodeSegmentKey.TENSION_PRIMARIA,
+        label: SEGMENT_LABELS[DesignCodeSegmentKey.TENSION_PRIMARIA],
+        value: primaryTensionLetter,
+        isMissing: false,
+      }),
+      new DesignCodeSegmentDto({
+        key: DesignCodeSegmentKey.TENSION_SECUNDARIA,
+        label: SEGMENT_LABELS[DesignCodeSegmentKey.TENSION_SECUNDARIA],
+        value: secondaryTensionLetter,
+        isMissing: false,
+      }),
+      new DesignCodeSegmentDto({
+        key: DesignCodeSegmentKey.ANIO,
+        label: SEGMENT_LABELS[DesignCodeSegmentKey.ANIO],
+        value: yearValue,
+        isMissing: false,
+      }),
+      new DesignCodeSegmentDto({
+        key: DesignCodeSegmentKey.MO,
+        label: SEGMENT_LABELS[DesignCodeSegmentKey.MO],
+        value: moValue,
+        isMissing: moMissing,
+      }),
+      new DesignCodeSegmentDto({
+        key: DesignCodeSegmentKey.MATERIAL_DEVANADO,
+        label: SEGMENT_LABELS[DesignCodeSegmentKey.MATERIAL_DEVANADO],
+        value: materialValue,
+        isMissing: materialDevanadoMissing,
+      }),
+      new DesignCodeSegmentDto({
+        key: DesignCodeSegmentKey.PAIS,
+        label: SEGMENT_LABELS[DesignCodeSegmentKey.PAIS],
+        value: countryCode,
+        isMissing: false,
+      }),
+      new DesignCodeSegmentDto({
+        key: DesignCodeSegmentKey.SUFIJO_FINAL,
+        label: SEGMENT_LABELS[DesignCodeSegmentKey.SUFIJO_FINAL],
+        value: finalSegment,
+        isMissing: false,
+      }),
+    ];
+
     const baseCode = assembleDesignCode({
       phase,
       powerLetter,
@@ -130,6 +209,7 @@ export class DesignCodeGenerationService {
         isComplete: false,
         moMissing,
         materialDevanadoMissing,
+        segments: buildSegments(year, moToken, materialToken),
       };
     }
 
@@ -145,6 +225,7 @@ export class DesignCodeGenerationService {
         isComplete: true,
         moMissing: false,
         materialDevanadoMissing: false,
+        segments: buildSegments(year, moToken, materialToken),
       };
     }
 
@@ -185,6 +266,12 @@ export class DesignCodeGenerationService {
           isComplete: true,
           moMissing: false,
           materialDevanadoMissing: false,
+          suffixPattern: defaultFormat.pattern,
+          segments: buildSegments(
+            `${year}${disambiguationToken}`,
+            moToken,
+            materialToken,
+          ),
         };
       }
     }
@@ -237,5 +324,12 @@ export class DesignCodeGenerationService {
       );
     }
     return match.letter;
+  }
+
+  async isCodeAvailable(code: string): Promise<boolean> {
+    const existing = await this.dataSource
+      .getRepository(Design)
+      .findOne({ where: { code, deletedAt: IsNull() } });
+    return !existing;
   }
 }

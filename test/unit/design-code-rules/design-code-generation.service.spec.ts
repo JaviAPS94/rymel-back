@@ -4,10 +4,51 @@ import { DesignCodeGenerationService } from '../../../src/modules/design-code-ru
 import { DesignCodePhaseType } from '../../../src/modules/design-code-rules/enums/design-code-phase-type.enum';
 import { DesignCodeSapSegmentName } from '../../../src/modules/design-code-rules/enums/design-code-sap-segment-name.enum';
 import { DesignCodeSuffixPattern } from '../../../src/modules/design-code-rules/enums/design-code-suffix-pattern.enum';
-import { GenerateDesignCodeDto } from '../../../src/modules/design-code-rules/dtos/generate-design-code.dto';
+import {
+  DesignCodeSegmentKey,
+  GenerateDesignCodeDto,
+} from '../../../src/modules/design-code-rules/dtos/generate-design-code.dto';
 
 describe('DesignCodeGenerationService', () => {
   const currentYearSuffix = String(new Date().getFullYear()).slice(-2);
+
+  const expectedSegments = (
+    yearValue: string,
+    moValue: string,
+    moMissing: boolean,
+    materialValue: string,
+    materialMissing: boolean,
+  ) => [
+    { key: DesignCodeSegmentKey.FASE, label: 'Fase', value: '1', isMissing: false },
+    { key: DesignCodeSegmentKey.POTENCIA, label: 'Potencia', value: 'D', isMissing: false },
+    {
+      key: DesignCodeSegmentKey.TENSION_PRIMARIA,
+      label: 'Tensión primaria',
+      value: 'A',
+      isMissing: false,
+    },
+    {
+      key: DesignCodeSegmentKey.TENSION_SECUNDARIA,
+      label: 'Tensión secundaria',
+      value: 'A',
+      isMissing: false,
+    },
+    { key: DesignCodeSegmentKey.ANIO, label: 'Año', value: yearValue, isMissing: false },
+    { key: DesignCodeSegmentKey.MO, label: 'MO', value: moValue, isMissing: moMissing },
+    {
+      key: DesignCodeSegmentKey.MATERIAL_DEVANADO,
+      label: 'Material de devanado',
+      value: materialValue,
+      isMissing: materialMissing,
+    },
+    { key: DesignCodeSegmentKey.PAIS, label: 'País', value: 'CO', isMissing: false },
+    {
+      key: DesignCodeSegmentKey.SUFIJO_FINAL,
+      label: 'Sufijo final',
+      value: 'CV',
+      isMissing: false,
+    },
+  ];
 
   const defaultSegmentMapping = {
     [DesignCodeSapSegmentName.FASE]: 0,
@@ -94,6 +135,7 @@ describe('DesignCodeGenerationService', () => {
       isComplete: true,
       moMissing: false,
       materialDevanadoMissing: false,
+      segments: expectedSegments(currentYearSuffix, 'MO', false, 'AL', false),
     });
   });
 
@@ -122,6 +164,7 @@ describe('DesignCodeGenerationService', () => {
       isComplete: false,
       moMissing: true,
       materialDevanadoMissing: false,
+      segments: expectedSegments(currentYearSuffix, '??', true, 'AL', false),
     });
     // No debe consultar duplicados mientras el código es solo una vista previa
     expect(designRepo.findOne).not.toHaveBeenCalled();
@@ -139,6 +182,7 @@ describe('DesignCodeGenerationService', () => {
       isComplete: false,
       moMissing: false,
       materialDevanadoMissing: true,
+      segments: expectedSegments(currentYearSuffix, 'MO', false, '??', true),
     });
     expect(designRepo.findOne).not.toHaveBeenCalled();
   });
@@ -177,6 +221,7 @@ describe('DesignCodeGenerationService', () => {
       isComplete: true,
       moMissing: false,
       materialDevanadoMissing: false,
+      segments: expectedSegments(`${currentYearSuffix}A`, 'MO', false, 'AL', false),
     });
   });
 });

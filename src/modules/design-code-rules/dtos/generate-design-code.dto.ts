@@ -1,6 +1,40 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber, IsOptional, IsString } from 'class-validator';
 
+export enum DesignCodeSegmentKey {
+  FASE = 'FASE',
+  POTENCIA = 'POTENCIA',
+  TENSION_PRIMARIA = 'TENSION_PRIMARIA',
+  TENSION_SECUNDARIA = 'TENSION_SECUNDARIA',
+  ANIO = 'ANIO',
+  MO = 'MO',
+  MATERIAL_DEVANADO = 'MATERIAL_DEVANADO',
+  PAIS = 'PAIS',
+  SUFIJO_FINAL = 'SUFIJO_FINAL',
+}
+
+export class DesignCodeSegmentDto {
+  @ApiProperty({ enum: DesignCodeSegmentKey })
+  key: DesignCodeSegmentKey;
+
+  @ApiProperty({ example: 'Fase' })
+  label: string;
+
+  @ApiProperty({ example: '1' })
+  value: string;
+
+  @ApiProperty({
+    example: false,
+    description:
+      'true cuando el valor mostrado es el placeholder "??" por no haber sido etiquetado aún (solo aplica a MO/MD)',
+  })
+  isMissing: boolean;
+
+  constructor(partial: DesignCodeSegmentDto) {
+    Object.assign(this, partial);
+  }
+}
+
 export class GenerateDesignCodeDto {
   @ApiProperty({ example: 1 })
   @IsNumber()
@@ -49,6 +83,17 @@ export class DesignCodeGenerationResponseDto {
 
   @ApiProperty({ example: false })
   materialDevanadoMissing: boolean;
+
+  @ApiProperty({ type: [DesignCodeSegmentDto] })
+  segments: DesignCodeSegmentDto[];
+
+  @ApiProperty({
+    example: 'LETTER_SUFFIX',
+    required: false,
+    description:
+      'Patrón del formato de sufijo de desambiguación predeterminado; solo presente cuando isDuplicate es true.',
+  })
+  suffixPattern?: string;
 
   constructor(partial: Partial<DesignCodeGenerationResponseDto>) {
     Object.assign(this, partial);
