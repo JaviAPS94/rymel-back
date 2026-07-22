@@ -18,6 +18,7 @@ import { UsersModule } from './modules/users/user.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CostModule } from './modules/costs/cost.module';
 import { BillOfMaterialsModule } from './modules/bill-of-materials/bill-of-materials.module';
+import { DesignCodeRulesModule } from './modules/design-code-rules/design-code-rules.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { BillOfMaterialsModule } from './modules/bill-of-materials/bill-of-mater
     AuthModule,
     CostModule,
     BillOfMaterialsModule,
+    DesignCodeRulesModule,
   ],
   providers: [
     {

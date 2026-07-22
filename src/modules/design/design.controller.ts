@@ -25,6 +25,11 @@ import { DesignResponseDto } from './dtos/design-response.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
 import { TemplateType } from '../../common/enums';
+import { DesignCodeGenerationService } from '../design-code-rules/services/design-code-generation.service';
+import {
+  DesignCodeGenerationResponseDto,
+  GenerateDesignCodeDto,
+} from '../design-code-rules/dtos/generate-design-code.dto';
 
 @ApiTags('Design')
 @Controller('design')
@@ -34,7 +39,36 @@ export class DesignController {
     private readonly designSubTypeService: DesignSubTypeService,
     private readonly templateService: TemplateService,
     private readonly designService: DesignService,
+    private readonly designCodeGenerationService: DesignCodeGenerationService,
   ) {}
+
+  @Post('/code/generate')
+  @Roles(Role.ADMIN, Role.DESIGN)
+  @ApiResponse({
+    status: 200,
+    description: 'The design code has been successfully generated.',
+    type: DesignCodeGenerationResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Missing rule configuration or invalid SAP reference.',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error.',
+  })
+  async generateDesignCode(
+    @Body(ValidationPipe) generateDesignCodeDto: GenerateDesignCodeDto,
+  ): Promise<DesignCodeGenerationResponseDto> {
+    try {
+      const result = await this.designCodeGenerationService.generate(
+        generateDesignCodeDto,
+      );
+      return new DesignCodeGenerationResponseDto(result);
+    } catch (error) {
+      throw new HttpException(error.message, error?.getStatus() ?? 500);
+    }
+  }
 
   @Get('/types')
   @Roles(Role.ADMIN, Role.DESIGN)

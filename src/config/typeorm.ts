@@ -1,6 +1,7 @@
 import { registerAs } from '@nestjs/config';
 import { config as dotenvConfig } from 'dotenv';
-import { DataSource, DataSourceOptions } from 'typeorm';
+import { DataSource } from 'typeorm';
+import type { DataSourceOptions } from 'typeorm';
 
 dotenvConfig({ path: '.env' });
 
@@ -19,7 +20,7 @@ const config = {
     encrypt: false,
     trustServerCertificate: true,
   },
-  seeds: ['dist/db/seeds/1764034390446-user{.ts,.js}'],
+  seeds: ['dist/db/seeds/1784086342227-design-code-rules{.ts,.js}'],
 };
 
 export default registerAs('typeorm', () => config);

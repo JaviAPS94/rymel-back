@@ -82,6 +82,9 @@
       "src",
       "test"
     ],
+    "modulePaths": [
+      "<rootDir>"
+    ],
     "coverageThreshold": {
       "global": {
         "branches": 80,

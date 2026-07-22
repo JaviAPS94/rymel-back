@@ -13,6 +13,7 @@ import { TemplateService } from './services/template.service';
 import { Template } from './entities/template.entity';
 import { Sheet } from './entities/sheet.entity';
 import { DesignService } from './services/design.service';
+import { DesignCodeRulesModule } from '../design-code-rules/design-code-rules.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { DesignService } from './services/design.service';
       Template,
       Sheet,
     ]),
+    DesignCodeRulesModule,
   ],
   controllers: [DesignController, DesignFunctionController],
   providers: [
