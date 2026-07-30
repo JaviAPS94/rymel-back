@@ -11,8 +11,21 @@ export class DesignCodeSecondaryTensionLetter {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'tension_value', type: 'decimal', precision: 10, scale: 2 })
-  tensionValue: number;
+  @Column({
+    name: 'tension_value_min',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+  })
+  tensionValueMin: number;
+
+  @Column({
+    name: 'tension_value_max',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+  })
+  tensionValueMax: number;
 
   @Column({ type: 'varchar', length: 1 })
   letter: string;

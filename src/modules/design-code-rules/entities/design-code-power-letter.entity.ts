@@ -15,8 +15,11 @@ export class DesignCodePowerLetter {
   @Column({ name: 'phase_type', type: 'varchar', length: 20 })
   phaseType: DesignCodePhaseType;
 
-  @Column({ name: 'power_kva', type: 'decimal', precision: 10, scale: 2 })
-  powerKva: number;
+  @Column({ name: 'power_kva_min', type: 'decimal', precision: 10, scale: 2 })
+  powerKvaMin: number;
+
+  @Column({ name: 'power_kva_max', type: 'decimal', precision: 10, scale: 2 })
+  powerKvaMax: number;
 
   @Column({ type: 'varchar', length: 1 })
   letter: string;

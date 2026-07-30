@@ -7,9 +7,13 @@ export class CreatePowerLetterDto {
   @IsEnum(DesignCodePhaseType)
   phaseType: DesignCodePhaseType;
 
-  @ApiProperty({ example: 25 })
+  @ApiProperty({ example: 20 })
   @IsNumber()
-  powerKva: number;
+  powerKvaMin: number;
+
+  @ApiProperty({ example: 30 })
+  @IsNumber()
+  powerKvaMax: number;
 
   @ApiProperty({ example: 'D' })
   @IsNotEmpty()
@@ -23,10 +27,15 @@ export class UpdatePowerLetterDto {
   @IsEnum(DesignCodePhaseType)
   phaseType?: DesignCodePhaseType;
 
-  @ApiProperty({ example: 25, required: false })
+  @ApiProperty({ example: 20, required: false })
   @IsOptional()
   @IsNumber()
-  powerKva?: number;
+  powerKvaMin?: number;
+
+  @ApiProperty({ example: 30, required: false })
+  @IsOptional()
+  @IsNumber()
+  powerKvaMax?: number;
 
   @ApiProperty({ example: 'D', required: false })
   @IsOptional()

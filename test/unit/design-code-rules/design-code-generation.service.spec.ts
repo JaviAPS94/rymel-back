@@ -34,7 +34,12 @@ describe('DesignCodeGenerationService', () => {
       isMissing: false,
     },
     { key: DesignCodeSegmentKey.ANIO, label: 'Año', value: yearValue, isMissing: false },
-    { key: DesignCodeSegmentKey.MO, label: 'MO', value: moValue, isMissing: moMissing },
+    {
+      key: DesignCodeSegmentKey.MO,
+      label: 'Material del núcleo',
+      value: moValue,
+      isMissing: moMissing,
+    },
     {
       key: DesignCodeSegmentKey.MATERIAL_DEVANADO,
       label: 'Material de devanado',
@@ -60,10 +65,19 @@ describe('DesignCodeGenerationService', () => {
   };
 
   const powerLetterRows = [
-    { phaseType: DesignCodePhaseType.MONOFASICA, powerKva: 25, letter: 'D' },
+    {
+      phaseType: DesignCodePhaseType.MONOFASICA,
+      powerKvaMin: 20,
+      powerKvaMax: 30,
+      letter: 'D',
+    },
   ];
-  const primaryTensionRows = [{ tensionValue: 220, letter: 'A' }];
-  const secondaryTensionRows = [{ tensionValue: 120, letter: 'A' }];
+  const primaryTensionRows = [
+    { tensionValueMin: 210, tensionValueMax: 230, letter: 'A' },
+  ];
+  const secondaryTensionRows = [
+    { tensionValueMin: 100, tensionValueMax: 130, letter: 'A' },
+  ];
 
   let elementRepo: { findOne: jest.Mock };
   let designRepo: { findOne: jest.Mock };
@@ -196,6 +210,39 @@ describe('DesignCodeGenerationService', () => {
     );
   });
 
+  it('matches a power letter when the value equals the lower bound of the configured range', async () => {
+    powerLetterService.findAll.mockResolvedValue([
+      {
+        phaseType: DesignCodePhaseType.MONOFASICA,
+        powerKvaMin: 25,
+        powerKvaMax: 30,
+        letter: 'D',
+      },
+    ]);
+    designRepo.findOne.mockResolvedValue(null);
+
+    const result = await service.generate(validDto);
+
+    expect(result.isComplete).toBe(true);
+    expect(result.code).toContain('D');
+  });
+
+  it('rejects when the power segment falls outside every configured range', async () => {
+    powerLetterService.findAll.mockResolvedValue([
+      {
+        phaseType: DesignCodePhaseType.MONOFASICA,
+        powerKvaMin: 26,
+        powerKvaMax: 30,
+        letter: 'D',
+      },
+    ]);
+    designRepo.findOne.mockResolvedValue(null);
+
+    await expect(service.generate(validDto)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
   it('rejects when the SAP reference has fewer segments than the configured mapping expects', async () => {
     elementRepo.findOne.mockResolvedValue({
       id: 1,
@@ -219,6 +266,7 @@ describe('DesignCodeGenerationService', () => {
       isDuplicate: true,
       baseCode: `1DAA${currentYearSuffix}MOAL-CO CV`,
       isComplete: true,
+      suffixPattern: DesignCodeSuffixPattern.LETTER_SUFFIX,
       moMissing: false,
       materialDevanadoMissing: false,
       segments: expectedSegments(`${currentYearSuffix}A`, 'MO', false, 'AL', false),

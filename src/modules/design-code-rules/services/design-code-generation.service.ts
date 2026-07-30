@@ -33,7 +33,7 @@ const SEGMENT_LABELS: Record<DesignCodeSegmentKey, string> = {
   [DesignCodeSegmentKey.TENSION_PRIMARIA]: 'Tensión primaria',
   [DesignCodeSegmentKey.TENSION_SECUNDARIA]: 'Tensión secundaria',
   [DesignCodeSegmentKey.ANIO]: 'Año',
-  [DesignCodeSegmentKey.MO]: 'MO',
+  [DesignCodeSegmentKey.MO]: 'Material del núcleo',
   [DesignCodeSegmentKey.MATERIAL_DEVANADO]: 'Material de devanado',
   [DesignCodeSegmentKey.PAIS]: 'País',
   [DesignCodeSegmentKey.SUFIJO_FINAL]: 'Sufijo final',
@@ -288,7 +288,10 @@ export class DesignCodeGenerationService {
     const powerKva = Number(powerRaw);
     const rows = await this.powerLetterService.findAll();
     const match = rows.find(
-      (row) => row.phaseType === phaseType && Number(row.powerKva) === powerKva,
+      (row) =>
+        row.phaseType === phaseType &&
+        powerKva >= Number(row.powerKvaMin) &&
+        powerKva <= Number(row.powerKvaMax),
     );
     if (!match) {
       throw new BadRequestException(
@@ -303,7 +306,11 @@ export class DesignCodeGenerationService {
   ): Promise<string> {
     const tensionValue = Number(tensionRaw);
     const rows = await this.primaryTensionLetterService.findAll();
-    const match = rows.find((row) => Number(row.tensionValue) === tensionValue);
+    const match = rows.find(
+      (row) =>
+        tensionValue >= Number(row.tensionValueMin) &&
+        tensionValue <= Number(row.tensionValueMax),
+    );
     if (!match) {
       throw new BadRequestException(
         `No existe una letra de tensión primaria configurada para ${tensionRaw}`,
@@ -317,7 +324,11 @@ export class DesignCodeGenerationService {
   ): Promise<string> {
     const tensionValue = Number(tensionRaw);
     const rows = await this.secondaryTensionLetterService.findAll();
-    const match = rows.find((row) => Number(row.tensionValue) === tensionValue);
+    const match = rows.find(
+      (row) =>
+        tensionValue >= Number(row.tensionValueMin) &&
+        tensionValue <= Number(row.tensionValueMax),
+    );
     if (!match) {
       throw new BadRequestException(
         `No existe una letra de tensión secundaria configurada para ${tensionRaw}`,

@@ -44,7 +44,7 @@ export class GenerateDesignCodeDto {
     example: 'MO',
     required: false,
     description:
-      'Valor de la celda etiquetada como "MO". Si se omite, el código se genera con un placeholder en ese segmento y `isComplete` viene en false.',
+      'Valor de la celda etiquetada como "MO" (material del núcleo). Si se omite, el código se genera con un placeholder en ese segmento y `isComplete` viene en false.',
   })
   @IsOptional()
   @IsString()

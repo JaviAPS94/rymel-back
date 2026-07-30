@@ -76,15 +76,19 @@ export class DesignCodeRules1784086342227 implements Seeder {
       ['Y', 1500],
     ];
 
+    // Rango degenerado (min = max = valor histórico) hasta que se ajusten los
+    // rangos reales de negocio desde project-admin.
     await powerLetterRepo.insert([
       ...monofasica.map(([letter, powerKva]) => ({
         phaseType: DesignCodePhaseType.MONOFASICA,
-        powerKva,
+        powerKvaMin: powerKva,
+        powerKvaMax: powerKva,
         letter,
       })),
       ...trifasica.map(([letter, powerKva]) => ({
         phaseType: DesignCodePhaseType.TRIFASICA,
-        powerKva,
+        powerKvaMin: powerKva,
+        powerKvaMax: powerKva,
         letter,
       })),
     ]);
@@ -121,7 +125,8 @@ export class DesignCodeRules1784086342227 implements Seeder {
 
     await primaryTensionRepo.insert(
       primaryTension.map(([letter, tensionValue]) => ({
-        tensionValue,
+        tensionValueMin: tensionValue,
+        tensionValueMax: tensionValue,
         letter,
       })),
     );
@@ -158,7 +163,8 @@ export class DesignCodeRules1784086342227 implements Seeder {
 
     await secondaryTensionRepo.insert(
       secondaryTension.map(([letter, tensionValue]) => ({
-        tensionValue,
+        tensionValueMin: tensionValue,
+        tensionValueMax: tensionValue,
         letter,
       })),
     );
