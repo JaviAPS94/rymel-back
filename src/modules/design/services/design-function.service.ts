@@ -2,6 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DesignFunction } from '../entities/design-function.entity';
+import { DesignFunctionVersion } from '../entities/design-function-version.entity';
+import {
+  currentVersionOf,
+  parseConstants,
+} from '../dtos/design-function-output.dto';
 import { CreateDesignFunctionDto } from '../dtos/create-design-function.dto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
@@ -18,6 +23,8 @@ export class DesignFunctionService {
   constructor(
     @InjectRepository(DesignFunction)
     private readonly designFunctionRepository: Repository<DesignFunction>,
+    @InjectRepository(DesignFunctionVersion)
+    private readonly versionRepository: Repository<DesignFunctionVersion>,
     private readonly httpService: HttpService,
   ) {
     this.secureFunctionEngineUrl = process.env.SECURE_FUNCTION_ENGINE_URL;
@@ -36,16 +43,28 @@ export class DesignFunctionService {
       ),
     );
 
-    const designFunction = this.designFunctionRepository.create({
-      name: createDto.name,
-      expression: encryptedDataResponse.data.encrypted,
-      variables: createDto.variables,
-      description: createDto.description,
-      constants: JSON.stringify(createDto.constants),
-      code: createDto.code,
-    });
+    const designFunction = await this.designFunctionRepository.save(
+      this.designFunctionRepository.create({
+        name: createDto.name,
+        description: createDto.description,
+        code: createDto.code,
+      }),
+    );
 
-    return this.designFunctionRepository.save(designFunction);
+    // La fórmula nace con su versión 1 ya vigente. Identidad y versión se
+    // crean juntas: una fórmula sin versión vigente no se puede evaluar.
+    await this.versionRepository.save(
+      this.versionRepository.create({
+        designFunctionId: designFunction.id,
+        version: 1,
+        expression: encryptedDataResponse.data.encrypted,
+        variables: createDto.variables,
+        constants: JSON.stringify(createDto.constants ?? {}),
+        isCurrent: true,
+      }),
+    );
+
+    return designFunction;
   }
 
   async calculateFunctions(
@@ -67,9 +86,12 @@ export class DesignFunctionService {
     parameters: FunctionParametersDto,
   ): Promise<FunctionCalculationResultDto> {
     try {
-      // Get the design function from the database
+      // La evaluación usa siempre la versión vigente: un diseño calculado
+      // con una versión anterior queda marcado como desactualizado, pero un
+      // cálculo nuevo se hace con la definición actual de la fórmula.
       const designFunction = await this.designFunctionRepository.findOne({
         where: { id: designFunctionId },
+        relations: ['versions'],
       });
 
       if (!designFunction) {
@@ -78,8 +100,14 @@ export class DesignFunctionService {
         );
       }
 
-      // Extract the encrypted function from the design function entity
-      const encryptedFunction = designFunction.expression;
+      const current = currentVersionOf(designFunction);
+      if (!current) {
+        throw new Error(
+          `La fórmula ${designFunctionId} no tiene una versión vigente`,
+        );
+      }
+
+      const encryptedFunction = current.expression;
 
       // Call the secure function engine
       const response = await firstValueFrom(
@@ -88,7 +116,7 @@ export class DesignFunctionService {
           {
             encryptedFunction,
             parameters,
-            constants: JSON.parse(designFunction.constants) || {},
+            constants: parseConstants(current.constants),
           },
         ),
       );

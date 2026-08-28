@@ -10,7 +10,7 @@ import {
 } from 'typeorm';
 import { DesignSubType } from './design-subtype.entity';
 import { Sheet } from './sheet.entity';
-import { TemplateType } from '../../../common/enums';
+import { TemplateStatus, TemplateType } from '../../../common/enums';
 
 @Entity()
 export class Template {
@@ -20,7 +20,7 @@ export class Template {
   @Column('nvarchar', { length: 'max', nullable: true })
   name: string;
 
-  @Column('nvarchar', { length: 'max' })
+  @Column('nvarchar', { length: 100 })
   code: string;
 
   @Column({ type: 'nvarchar', nullable: true })
@@ -39,6 +39,30 @@ export class Template {
     default: TemplateType.DESIGN,
   })
   type: TemplateType;
+
+  /**
+   * Si los diseñadores la ven. Una plantilla nace en borrador y solo la
+   * publicación la hace visible en la biblioteca.
+   */
+  @Column({
+    type: 'nvarchar',
+    length: 20,
+    default: TemplateStatus.DRAFT,
+  })
+  status: TemplateStatus;
+
+  /** Cuántas veces se ha publicado. 0 mientras no se haya publicado nunca. */
+  @Column({ type: 'int', default: 0 })
+  version: number;
+
+  /** Versión de `@rymel/design-template` con la que se validó al publicar. */
+  @Column({
+    name: 'contract_version',
+    type: 'nvarchar',
+    length: 20,
+    nullable: true,
+  })
+  contractVersion?: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

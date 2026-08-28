@@ -24,6 +24,7 @@ export class DesignSubTypeService {
         'designType',
         'designSubTypeFunctions',
         'designSubTypeFunctions.designFunction',
+        'designSubTypeFunctions.designFunction.versions',
       ],
     });
   }
@@ -48,6 +49,7 @@ export class DesignSubTypeService {
         'designType',
         'designSubTypeFunctions',
         'designSubTypeFunctions.designFunction',
+        'designSubTypeFunctions.designFunction.versions',
       ],
     });
 
@@ -72,6 +74,7 @@ export class DesignSubTypeService {
         'designType',
         'designSubTypeFunctions',
         'designSubTypeFunctions.designFunction',
+        'designSubTypeFunctions.designFunction.versions',
       ],
     });
   }

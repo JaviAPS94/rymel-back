@@ -17,10 +17,10 @@ export class Sheet {
   @Column('nvarchar', { length: 255 })
   name: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'nvarchar', length: 'max', nullable: true })
   cellsStyles?: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'nvarchar', length: 'max' })
   cells: string;
 
   @ManyToOne(() => Template, (template) => template.sheets)

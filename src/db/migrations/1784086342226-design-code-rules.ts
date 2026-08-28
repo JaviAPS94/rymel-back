@@ -27,9 +27,7 @@ export class DesignCodeRules1784086342226 implements MigrationInterface {
     await queryRunner.query(
       `DROP TABLE "design_code_secondary_tension_letter"`,
     );
-    await queryRunner.query(
-      `DROP TABLE "design_code_primary_tension_letter"`,
-    );
+    await queryRunner.query(`DROP TABLE "design_code_primary_tension_letter"`);
     await queryRunner.query(`DROP TABLE "design_code_power_letter"`);
   }
 }

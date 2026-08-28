@@ -19,6 +19,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { CostModule } from './modules/costs/cost.module';
 import { BillOfMaterialsModule } from './modules/bill-of-materials/bill-of-materials.module';
 import { DesignCodeRulesModule } from './modules/design-code-rules/design-code-rules.module';
+import { PhantomItemModule } from './modules/phantom-item/phantom-item.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { DesignCodeRulesModule } from './modules/design-code-rules/design-code-r
     CostModule,
     BillOfMaterialsModule,
     DesignCodeRulesModule,
+    PhantomItemModule,
   ],
   providers: [
     {
