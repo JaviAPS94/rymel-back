@@ -5,31 +5,7 @@ import {
   PhantomItemDetailOutputDto,
   PhantomItemOutputDto,
 } from '../dtos/phantom-item-output.dto';
-import {
-  calculateLengths,
-  getDefaultLengthFormula,
-  parseFormulaOverrides,
-} from './derived-fields';
-import {
-  PHANTOM_ITEM_COLUMNS,
-  PhantomItemFieldScope,
-} from '../constants/phantom-item-columns';
-
-/**
- * Fills in the record's own formulas with the default ones, so the client
- * always receives the effective expression of each derived field.
- */
-const buildEffectiveFormulaOverrides = (own: Record<string, string>) => {
-  const effective = { ...own };
-  PHANTOM_ITEM_COLUMNS.filter(
-    (column) => column.scope === PhantomItemFieldScope.LENGTH,
-  ).forEach((column) => {
-    if (!effective[column.field]) {
-      effective[column.field] = getDefaultLengthFormula(column.field);
-    }
-  });
-  return effective;
-};
+import { calculateLengths, parseFormulaOverrides } from './derived-fields';
 
 export const toComponentOutput = (
   component: PhantomItemComponent,
@@ -69,7 +45,21 @@ export const toPhantomItemOutput = (
     referenceLength: lengths.referenceLength,
     itemDescriptionLength: lengths.itemDescriptionLength,
     shortDescriptionLength: lengths.shortDescriptionLength,
-    formulaOverrides: buildEffectiveFormulaOverrides(formulaOverrides),
+    /**
+     * Solo lo que el registro tiene de propio.
+     *
+     * Antes se rellenaba con la fórmula por defecto de cada longitud, para que
+     * el cliente recibiera «la expresión efectiva». Dos problemas. Uno: un
+     * override significa «alguien cambió esto», y devolver el valor por
+     * defecto con ese nombre borra la distinción. Dos, y es el que se veía:
+     * esa fórmula está escrita en el dialecto de este lado —`=LARGO(reference)`,
+     * que mide un campo por su nombre porque aquí se calcula sin rejilla— y el
+     * editor evalúa referencias de celda. `=LARGO(reference)` no es evaluable
+     * allí, así que la fila cargada mostraba `#ERROR` en las tres columnas de
+     * longitud mientras las filas añadidas en el editor, con `=LARGO(F2)`,
+     * salían bien.
+     */
+    formulaOverrides,
     componentsCount,
   };
 };
