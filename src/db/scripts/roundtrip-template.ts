@@ -110,6 +110,8 @@ async function main(): Promise<void> {
         {
           id: 'ct-1',
           name: 'Aceros',
+          // El selector del admin enruta por estas etiquetas.
+          tags: ['acero'],
           startCell: 'C4',
           endCell: 'E9',
           headerRows: 1,
@@ -134,20 +136,25 @@ async function main(): Promise<void> {
     name: 'Resumen',
     cells: {
       A1: { formula: 'Resumen', bold: true, textColor: '#2d6ef0' },
-      B2: { formula: '3000' },
+      // Los dos segmentos del código de diseño salen de aquí.
+      B2: { formula: '3000', materialTag: 'MO' },
       // Fórmula entre hojas, con `;` y rango calificado en los dos extremos:
       // exactamente la forma que tienen las plantillas reales.
       B3: { formula: '=BUSCARV(B2;Tablas!A2:Tablas!B3;2;FALSE)' },
-      B4: { formula: '=B3*2' },
+      B4: { formula: '=B3*2', materialTag: 'MD' },
+      // La cantidad del ítem vinculado, enrutado al catálogo por B6. Toda la
+      // configuración del BOM es de la plantilla: el diseñador no la cambia.
       B5: {
-        formula: '',
+        formula: '=B4',
         border: '1px solid #000',
         itemLink: {
           catalogSheetName: 'Tablas',
           catalogTableId: 'ct-1',
           itemId: 'AC-1',
         },
+        catalogConditionCells: ['B6'],
       },
+      B6: { formula: 'acero' },
       C1: { formula: '', elementKey: 'power' },
       D1: { formula: '', options: ['Aluminio', 'Cobre'] },
       D2: { formula: '', goTo: { conditionCells: ['D1'] } },
@@ -157,13 +164,16 @@ async function main(): Promise<void> {
       ...emptySheetStyles(),
       freezeRow: 1,
       mergedCells: [{ startCell: 'A1', endCell: 'C1', rowSpan: 1, colSpan: 3 }],
+      // El cálculo de B3:B4 no lo toca el diseñador.
+      readOnlyZones: [{ id: 'ro-1', startCell: 'B3', endCell: 'B4' }],
       semiFinishedZones: [
         {
           id: 'sf-1',
           semiFinishedId: 1,
           semiFinishedCode: 'BOBINA',
           semiFinishedName: 'BOBINA',
-          startCell: 'A10',
+          // Contiene la celda vinculada, que es lo que el BOM atribuye al semielaborado.
+          startCell: 'A5',
           endCell: 'C14',
         },
       ],

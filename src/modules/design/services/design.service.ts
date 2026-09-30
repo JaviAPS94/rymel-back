@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { DataSource, In } from 'typeorm';
 import { CreateDesignDto } from '../dtos/create-desing.dto';
 import { Design } from '../entities/design.entity';
@@ -9,6 +13,7 @@ import { DesignSubType } from '../entities/design-subtype.entity';
 import { DesignFiltersPaginatedDto } from '../dtos/designs-filters-paginated.dto';
 import { Cost } from 'src/modules/costs/entities/cost.entity';
 import { SubCost } from 'src/modules/costs/entities/sub-cost.entity';
+import { findReadOnlyViolations } from './read-only-guard';
 
 @Injectable()
 export class DesignService {
@@ -211,6 +216,22 @@ export class DesignService {
       design.name = designData.name;
       design.code = designData.code;
       design.designSubType = designSubType;
+
+      // Las celdas que la plantilla protege no cambian, ni aunque la
+      // petición se salte la interfaz del diseñador.
+      const storedSubDesigns = await queryRunner.manager.find(SubDesign, {
+        where: { design: { id }, deletedAt: null },
+      });
+      const violations = findReadOnlyViolations(
+        storedSubDesigns.map((subDesign) => subDesign.data),
+        (designData.subDesigns ?? []).map((subDesign) => subDesign.data),
+      );
+      if (violations.length > 0) {
+        throw new UnprocessableEntityException({
+          message: violations.map((violation) => violation.message),
+          violations,
+        });
+      }
 
       // First, remove existing design elements and sub-designs
       await queryRunner.manager.delete(DesignElement, { design: { id } });
