@@ -7,6 +7,8 @@ import { DesignType } from './entities/design-type.entity';
 import { DesignSubType } from './entities/design-subtype.entity';
 import { DesignFunction } from './entities/design-function.entity';
 import { DesignFunctionVersion } from './entities/design-function-version.entity';
+import { DesignFunctionDependency } from './entities/design-function-dependency.entity';
+import { DesignFunctionDependencyService } from './services/design-function-dependency.service';
 import { DesignFunctionAccessLog } from './entities/design-function-access-log.entity';
 import { DesignFunctionVersionService } from './services/design-function-version.service';
 import { SecureFunctionEngineClient } from './services/secure-function-engine.client';
@@ -37,6 +39,7 @@ import { DesignCodeRulesModule } from '../design-code-rules/design-code-rules.mo
       DesignSubType,
       DesignFunction,
       DesignFunctionVersion,
+      DesignFunctionDependency,
       DesignFunctionAccessLog,
       DesignSubTypeFunction,
       SubDesign,
@@ -59,6 +62,7 @@ import { DesignCodeRulesModule } from '../design-code-rules/design-code-rules.mo
     DesignSubTypeService,
     DesignFunctionService,
     DesignFunctionVersionService,
+    DesignFunctionDependencyService,
     SecureFunctionEngineClient,
     DesignFunctionAdminService,
     DesignRecalculationService,
@@ -71,6 +75,7 @@ import { DesignCodeRulesModule } from '../design-code-rules/design-code-rules.mo
     DesignSubTypeService,
     DesignFunctionService,
     DesignFunctionVersionService,
+    DesignFunctionDependencyService,
     SecureFunctionEngineClient,
     DesignFunctionAdminService,
     DesignRecalculationService,

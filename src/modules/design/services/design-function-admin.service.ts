@@ -41,8 +41,10 @@ import {
   type TestExpressionDto,
   TestExpressionResultDto,
   type UpdateDesignFunctionDto,
+  type FunctionSummaryDto,
 } from '../dtos/design-function-admin.dto';
 import { TemplateType } from '../../../common/enums';
+import { DesignFunctionDependencyService } from './design-function-dependency.service';
 import { parseConstants } from '../dtos/design-function-output.dto';
 
 @Injectable()
@@ -60,6 +62,7 @@ export class DesignFunctionAdminService {
     private readonly subDesignRepository: Repository<SubDesign>,
     private readonly versions: DesignFunctionVersionService,
     private readonly engine: SecureFunctionEngineClient,
+    private readonly dependencies: DesignFunctionDependencyService,
   ) {}
 
   async list(
@@ -160,6 +163,8 @@ export class DesignFunctionAdminService {
     detail.version = current.version;
     detail.versionId = current.id;
     detail.designSubTypeIds = await this.assignedSubTypeIds(id);
+    detail.invokes = await this.summaries(await this.dependencies.directCallees(id));
+    detail.invokedBy = await this.summaries(await this.dependencies.directCallers(id));
 
     try {
       detail.expression = await this.versions.revealExpression(id, user);
@@ -254,7 +259,29 @@ export class DesignFunctionAdminService {
   /** Baja lógica: la fórmula deja de ofrecerse pero su historial se conserva. */
   async softDelete(id: number): Promise<void> {
     await this.requireFunction(id);
+
+    // Dar de baja una fórmula que otra invoca dejaría a esa otra sin poder
+    // evaluarse, lejos de aquí y sin relación aparente.
+    const callers = await this.summaries(await this.dependencies.directCallers(id));
+    if (callers.length > 0) {
+      throw new ValidationError(
+        `No se puede dar de baja: la invoca${callers.length === 1 ? '' : 'n'} ${callers
+          .map((caller) => caller.code)
+          .join(', ')}`,
+      );
+    }
+
     await this.functionRepository.update({ id }, { deletedAt: new Date() });
+  }
+
+  /** Código y nombre de unas fórmulas, para mostrarlas. */
+  private async summaries(ids: readonly number[]): Promise<FunctionSummaryDto[]> {
+    if (ids.length === 0) return [];
+    const functions = await this.functionRepository.find({
+      where: { id: In([...ids]) },
+      order: { code: 'ASC' },
+    });
+    return functions.map((item) => ({ id: item.id, code: item.code, name: item.name }));
   }
 
   async restoreDeleted(id: number): Promise<void> {
@@ -301,10 +328,16 @@ export class DesignFunctionAdminService {
 
     try {
       const encrypted = await this.engine.encrypt(dto.expression);
+      // Las fórmulas que invoca, con su versión vigente, como en un cálculo real.
+      const closure = await this.dependencies.forCodes(
+        (validation.formulaCalls ?? []).map((call) => call.name),
+        dto.type,
+      );
       result.result = await this.engine.evaluate(
         encrypted,
         dto.parameters ?? {},
         constants,
+        DesignFunctionDependencyService.toEngine(closure),
       );
       result.ok = true;
     } catch (error) {
@@ -414,8 +447,13 @@ export class DesignFunctionAdminService {
       relations: ['design'],
     });
 
+    // Quien la invoca, directa o indirectamente, arrastra a sus diseños.
+    const callers = await this.summaries(
+      await this.dependencies.callersOf(designFunctionId),
+    );
+    const codes = [designFunction.code, ...callers.map((caller) => caller.code)];
     const invocation = new RegExp(
-      `(?<![A-Za-z0-9_])${designFunction.code}\\s*\\(`,
+      `(?<![A-Za-z0-9_])(?:${codes.join('|')})\\s*\\(`,
     );
 
     let subDesignCount = 0;
@@ -441,6 +479,7 @@ export class DesignFunctionAdminService {
     impact.subDesignCount = subDesignCount;
     impact.designCount = designIds.size;
     impact.staleSubDesignCount = staleCount;
+    impact.invokedBy = callers;
     return impact;
   }
 

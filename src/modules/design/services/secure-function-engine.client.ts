@@ -27,6 +27,17 @@ export interface ValidationResult {
   error?: string;
   symbols?: string[];
   functions?: string[];
+  /** Otras fórmulas que invoca, por código. */
+  formulas?: string[];
+  /** Cada invocación a otra fórmula con cuántos argumentos recibe. */
+  formulaCalls?: { name: string; argCount: number }[];
+}
+
+/** Una fórmula invocada, como la espera el motor en `dependencies`. */
+export interface EngineDependency {
+  encryptedFunction: string;
+  variables: string[];
+  constants: Record<string, number>;
 }
 
 @Injectable()
@@ -68,17 +79,39 @@ export class SecureFunctionEngineClient {
     return this.post<ValidationResult>('validate', { plainTextFunction });
   }
 
+  /**
+   * Evalúa una expresión cifrada. `dependencies` es el cierre de fórmulas
+   * que invoca, por código: el motor las descifra y las resuelve él, sin que
+   * su texto salga de allí.
+   */
   async evaluate(
     encryptedFunction: string,
     parameters: Record<string, number>,
     constants: Record<string, number>,
+    dependencies: Record<string, EngineDependency> = {},
   ): Promise<number> {
     const data = await this.post<{ result: number }>('evaluate-function', {
       encryptedFunction,
       parameters,
       constants,
+      // Sin dependencias no se envía el campo: un motor anterior lo ignoraría
+      // igual, pero así la petición es la de siempre.
+      ...(Object.keys(dependencies).length > 0 ? { dependencies } : {}),
     });
     return data.result;
+  }
+
+  /**
+   * Qué fórmulas invoca una expresión ya cifrada, sin pedir su texto. Exige
+   * el secreto servicio-a-servicio.
+   */
+  async invokedFormulas(
+    encryptedFunction: string,
+  ): Promise<{ name: string; argCount: number }[]> {
+    const data = await this.post<{
+      formulaCalls: { name: string; argCount: number }[];
+    }>('invoked-formulas', { encryptedFunction });
+    return data.formulaCalls;
   }
 
   private async post<T>(

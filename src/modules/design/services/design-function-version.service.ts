@@ -10,12 +10,17 @@
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { DesignFunction } from '../entities/design-function.entity';
 import { DesignFunctionVersion } from '../entities/design-function-version.entity';
 import { DesignFunctionAccessLog } from '../entities/design-function-access-log.entity';
 import { SecureFunctionEngineClient } from './secure-function-engine.client';
 import { DesignRecalculationService } from './design-recalculation.service';
+import {
+  DesignFunctionDependencyService,
+  type FormulaCall,
+} from './design-function-dependency.service';
+import { DesignFunctionDependency } from '../entities/design-function-dependency.entity';
 import {
   detectIncompatibleVariableChange,
   parseVariables,
@@ -61,6 +66,7 @@ export class DesignFunctionVersionService {
     private readonly engine: SecureFunctionEngineClient,
     private readonly dataSource: DataSource,
     private readonly recalculation: DesignRecalculationService,
+    private readonly dependencies: DesignFunctionDependencyService,
   ) {}
 
   /** Versión vigente de una fórmula. */
@@ -99,7 +105,7 @@ export class DesignFunctionVersionService {
     expression: string,
     variablesRaw: string,
     constants: Record<string, number>,
-  ): Promise<Warning[]> {
+  ): Promise<{ warnings: Warning[]; formulaCalls: FormulaCall[] }> {
     const variables = parseVariables(variablesRaw);
 
     validateConstants(constants);
@@ -112,11 +118,16 @@ export class DesignFunctionVersionService {
       );
     }
 
-    return validateSymbolsDeclared(
-      validation.symbols ?? [],
-      variables,
-      constants,
-    );
+    // Los códigos de otras fórmulas no son símbolos que haya que declarar:
+    // el motor los devuelve aparte, como invocaciones.
+    return {
+      warnings: validateSymbolsDeclared(
+        validation.symbols ?? [],
+        variables,
+        constants,
+      ),
+      formulaCalls: validation.formulaCalls ?? [],
+    };
   }
 
   /**
@@ -137,11 +148,20 @@ export class DesignFunctionVersionService {
       );
     }
 
-    const warnings = await this.validateDefinition(
+    const { warnings, formulaCalls } = await this.validateDefinition(
       input.expression,
       input.variables,
       input.constants,
     );
+
+    // Existencia, tipo, aridad, ciclos y profundidad de las fórmulas que
+    // invoca, contra las versiones vigentes de las demás.
+    const dependsOn = await this.dependencies.checkComposition({
+      functionId: designFunction.id,
+      code: designFunction.code,
+      type: designFunction.type,
+      calls: formulaCalls,
+    });
 
     const current = await this.versionRepository.findOne({
       where: { designFunctionId: input.designFunctionId, isCurrent: true },
@@ -179,7 +199,7 @@ export class DesignFunctionVersionService {
         { isCurrent: false },
       );
 
-      return manager.save(
+      const version = await manager.save(
         manager.create(DesignFunctionVersion, {
           designFunctionId: input.designFunctionId,
           version: nextNumber,
@@ -189,6 +209,8 @@ export class DesignFunctionVersionService {
           isCurrent: true,
         }),
       );
+      await this.saveDependencies(manager, version.id, dependsOn);
+      return version;
     });
 
     // Publicar no cambia ningún valor ya calculado: marca los diseños que
@@ -199,6 +221,19 @@ export class DesignFunctionVersionService {
     );
 
     return { version: saved, warnings, staleSubDesigns };
+  }
+
+  private async saveDependencies(
+    manager: EntityManager,
+    versionId: number,
+    dependsOn: readonly number[],
+  ): Promise<void> {
+    if (dependsOn.length === 0) return;
+    await manager.save(
+      dependsOn.map((dependsOnFunctionId) =>
+        manager.create(DesignFunctionDependency, { versionId, dependsOnFunctionId }),
+      ),
+    );
   }
 
   /**
@@ -223,6 +258,19 @@ export class DesignFunctionVersionService {
       );
     }
 
+    // La versión restaurada invoca lo mismo que invocaba, pero las demás
+    // pueden haber cambiado desde entonces: pasa la misma comprobación que
+    // una publicación. El motor analiza la expresión cifrada sin devolverla.
+    const designFunction = await this.functionRepository.findOneOrFail({
+      where: { id: designFunctionId },
+    });
+    const dependsOn = await this.dependencies.checkComposition({
+      functionId: designFunctionId,
+      code: designFunction.code,
+      type: designFunction.type,
+      calls: await this.engine.invokedFormulas(source.expression),
+    });
+
     const nextNumber = await this.nextVersionNumber(designFunctionId);
 
     const restored = await this.dataSource.transaction(async (manager) => {
@@ -232,7 +280,7 @@ export class DesignFunctionVersionService {
         { isCurrent: false },
       );
 
-      return manager.save(
+      const version = await manager.save(
         manager.create(DesignFunctionVersion, {
           designFunctionId,
           version: nextNumber,
@@ -246,6 +294,8 @@ export class DesignFunctionVersionService {
           createdBy: `restauración de la versión ${versionNumber}`,
         }),
       );
+      await this.saveDependencies(manager, version.id, dependsOn);
+      return version;
     });
 
     // Restaurar también cambia la definición vigente, así que los diseños
