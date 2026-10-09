@@ -32,6 +32,7 @@ import { DesignFunctionVersion } from '../entities/design-function-version.entit
 import { DesignSubTypeFunction } from '../entities/design-subtype-function.entity';
 import { SubDesignRecalculation } from '../entities/sub-design-recalculation.entity';
 import { SecureFunctionEngineClient } from './secure-function-engine.client';
+import { DesignFunctionDependencyService } from './design-function-dependency.service';
 import {
   formulaCellRefs,
   invokedFunctionCodes,
@@ -84,6 +85,7 @@ export class DesignRecalculationService {
     private readonly recalculationRepository: Repository<SubDesignRecalculation>,
     private readonly engine: SecureFunctionEngineClient,
     private readonly dataSource: DataSource,
+    private readonly dependencies: DesignFunctionDependencyService,
   ) {}
 
   // --- Estampado y obsolescencia -----------------------------------------
@@ -122,6 +124,15 @@ export class DesignRecalculationService {
     });
     if (!designFunction) return 0;
 
+    // Quien la invoca, directa o indirectamente, también cambió de resultado:
+    // los diseños que usan esas fórmulas quedan igual de desactualizados.
+    const callerIds = await this.dependencies.callersOf(designFunctionId);
+    const callers =
+      callerIds.length > 0
+        ? await this.functionRepository.find({ where: { id: In(callerIds) } })
+        : [];
+    const codes = [designFunction.code, ...callers.map((caller) => caller.code)];
+
     const subDesigns = await this.subDesignRepository.find();
     const affected: number[] = [];
 
@@ -130,9 +141,7 @@ export class DesignRecalculationService {
 
       const parsed = parseSubDesignData(subDesign.data);
       if (!parsed) continue;
-      if (
-        invokedFunctionCodes(parsed.cells, [designFunction.code]).length === 0
-      ) {
+      if (invokedFunctionCodes(parsed.cells, codes).length === 0) {
         continue;
       }
 
@@ -344,6 +353,8 @@ export class DesignRecalculationService {
 
     const byId = new Map(available.map((item) => [item.functionId, item]));
     const used = new Set<number>();
+    /** Fórmulas invocadas a través de otras, con la versión con que se evaluaron. */
+    const indirect = new Map<number, number>();
 
     const resolveCustomFunctions = async (
       calls: CustomFunctionCall[],
@@ -358,10 +369,17 @@ export class DesignRecalculationService {
           }
           used.add(target.functionId);
           try {
+            // El cierre de lo que invoca, que también queda estampado: si
+            // una de ellas cambia, este diseño tiene que saberse afectado.
+            const closure = await this.dependencies.closure(target.functionId);
+            for (const dependency of closure) {
+              indirect.set(dependency.functionId, dependency.versionId);
+            }
             const value = await this.engine.evaluate(
               target.expression,
               call.parameters,
               target.constants,
+              DesignFunctionDependencyService.toEngine(closure),
             );
             return { value };
           } catch (error) {
@@ -404,6 +422,9 @@ export class DesignRecalculationService {
     }
 
     const stamp: VersionStamp = {};
+    for (const [functionId, versionId] of indirect) {
+      stamp[String(functionId)] = versionId;
+    }
     for (const functionId of used) {
       const target = byId.get(functionId);
       if (target) stamp[String(functionId)] = target.versionId;

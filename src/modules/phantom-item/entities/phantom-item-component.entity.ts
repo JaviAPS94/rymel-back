@@ -113,6 +113,15 @@ export class PhantomItemComponent {
   })
   formulaOverrides: string;
 
+  /** Values of the process's own component-scoped columns, as JSON `{ key: text }` */
+  @Column({
+    name: 'extra_values',
+    type: 'nvarchar',
+    length: 'max',
+    nullable: true,
+  })
+  extraValues: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

@@ -191,6 +191,39 @@ async function main(): Promise<void> {
     })) === 2,
   );
 
+  console.log('\n--- reglas del contrato v2.1.0');
+  await service.saveSheet(creada.id, 'Resumen', {
+    name: 'Resumen',
+    cells: {
+      A1: { formula: '=Tablas!B4*2' },
+      A2: { formula: '5', materialTag: 'MO' },
+      A3: { formula: '7', materialTag: 'MO' },
+    },
+  });
+  const dosMo = await service.publish(creada.id, { email: 'check' });
+  check('no publica con dos celdas MO', dosMo.published === false);
+  check(
+    'lo explica con duplicate-material-tag',
+    (await service.findOne(creada.id)).diagnostics.some(
+      (d) => d.code === 'duplicate-material-tag',
+    ),
+  );
+
+  const zonas = [{ id: 'ro-1', startCell: 'A1', endCell: 'A3' }];
+  await service.saveSheet(creada.id, 'Resumen', {
+    name: 'Resumen',
+    cells: { A1: { formula: '=Tablas!B4*2' } },
+    styles: { readOnlyZones: zonas },
+  });
+  const conZonas = await service.findOne(creada.id);
+  check(
+    'conserva las zonas de solo lectura del borrador',
+    JSON.stringify(
+      conZonas.document.sheets.find((sheet) => sheet.name === 'Resumen')?.styles
+        .readOnlyZones,
+    ) === JSON.stringify(zonas),
+  );
+
   console.log('\n--- el borrador no altera lo publicado');
   await service.saveSheet(creada.id, 'Resumen', {
     name: 'Resumen',

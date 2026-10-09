@@ -8,6 +8,7 @@ import {
   Brackets,
   DataSource,
   EntityManager,
+  In,
   IsNull,
   Repository,
 } from 'typeorm';
@@ -39,6 +40,8 @@ import {
   toPhantomItemOutput,
 } from '../utils/phantom-item.mapper';
 import { DEFAULT_REFERENCE_LIMIT } from '../constants/phantom-item-columns';
+import { PhantomProcessService } from './phantom-process.service';
+import { serializeExtraValues } from '../utils/extra-values';
 
 /**
  * Minimal input to build a header. Accepts the API DTOs as well as the
@@ -56,7 +59,13 @@ export interface HeaderBuildInput {
   shortDescription?: string;
   unitOfMeasure?: string;
   referenceLengthLimit?: number;
+  /** The process's rule; not stored on the phantom item */
+  referenceSeparator?: string;
   formulaOverrides?: FormulaMap | string;
+  processId?: number;
+  familyId?: number | null;
+  /** Own header columns of the process: an object, or the stored JSON */
+  extraValues?: Record<string, string> | string | null;
 }
 
 export interface ComponentBuildInput {
@@ -70,7 +79,13 @@ export interface ComponentBuildInput {
   consumptionWarehouse?: string;
   sortOrder?: number;
   formulaOverrides?: FormulaMap | string;
+  extraValues?: Record<string, string> | string | null;
 }
+
+/** Parses stored JSON or passes an object through, for extra values */
+const asExtraObject = (
+  value: Record<string, string> | string | null | undefined,
+): unknown => (typeof value === 'string' ? JSON.parse(value) : value);
 
 @Injectable()
 export class PhantomItemService {
@@ -80,6 +95,7 @@ export class PhantomItemService {
     @InjectRepository(PhantomItemComponent)
     private readonly componentRepository: Repository<PhantomItemComponent>,
     private readonly dataSource: DataSource,
+    private readonly processes: PhantomProcessService,
   ) {}
 
   async findAllPaginated(
@@ -90,6 +106,7 @@ export class PhantomItemService {
 
     const query = this.phantomItemRepository
       .createQueryBuilder('phantomItem')
+      .leftJoinAndSelect('phantomItem.family', 'family')
       .loadRelationCountAndMap(
         'phantomItem.componentsCount',
         'phantomItem.components',
@@ -132,9 +149,22 @@ export class PhantomItemService {
         phantomRootCode: filters.phantomRootCode,
       });
     }
+    if (filters.processId) {
+      query.andWhere('phantomItem.process_id = :processId', {
+        processId: filters.processId,
+      });
+    }
+    if (filters.familyId) {
+      query.andWhere('phantomItem.family_id = :familyId', {
+        familyId: filters.familyId,
+      });
+    }
 
+    // By property, not by column: with the family join TypeORM paginates with
+    // an inner query that only knows the entity's properties, and
+    // `phantomItem.item_code` broke the list (reading 'databaseName')
     const [phantomItems, total] = await query
-      .orderBy('phantomItem.item_code', 'ASC')
+      .orderBy('phantomItem.itemCode', 'ASC')
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
@@ -157,6 +187,7 @@ export class PhantomItemService {
   async findEntityOrFail(id: number): Promise<PhantomItem> {
     const phantomItem = await this.phantomItemRepository.findOne({
       where: { id, deletedAt: IsNull() },
+      relations: ['family'],
     });
 
     if (!phantomItem) {
@@ -178,7 +209,8 @@ export class PhantomItemService {
   async create(dto: CreatePhantomItemDto): Promise<PhantomItemDetailOutputDto> {
     await this.assertItemCodeIsAvailable(dto.itemCode);
 
-    const header = this.buildHeader(dto);
+    const placement = await this.resolvePlacement(dto);
+    const header = this.buildHeader({ ...dto, ...placement });
 
     const id = await this.dataSource.transaction(async (manager) => {
       const saved = await manager.getRepository(PhantomItem).save(header);
@@ -201,9 +233,12 @@ export class PhantomItemService {
 
     // Derived rules are recalculated over the merge of what exists and what
     // arrives, so a partial PATCH doesn't wipe fields that weren't sent.
+    const placement = await this.resolvePlacement(dto, existing);
     const merged = {
       ...existing,
       ...dto,
+      ...placement,
+      extraValues: dto.extraValues ?? existing.extraValues,
       formulaOverrides:
         dto.formulaOverrides ??
         parseFormulaOverrides(existing.formulaOverrides),
@@ -230,6 +265,41 @@ export class PhantomItemService {
         .getRepository(PhantomItemComponent)
         .update({ phantomItemId: id, deletedAt: IsNull() }, { deletedAt });
     });
+  }
+
+  /**
+   * Soft-deletes several phantom items and their components at once. All or
+   * nothing: if any id does not exist (or was already deleted), none is
+   * deleted, so the screen never shows a half-applied selection.
+   */
+  async removeMany(ids: number[]): Promise<{ deleted: number }> {
+    const unique = [...new Set(ids)];
+    const found = await this.phantomItemRepository.find({
+      where: { id: In(unique), deletedAt: IsNull() },
+      select: { id: true },
+    });
+    const missing = unique.filter(
+      (id) => !found.some((item) => item.id === id),
+    );
+    if (missing.length > 0) {
+      throw new NotFoundException(
+        `Phantom items not found: ${missing.join(', ')}`,
+      );
+    }
+
+    const deletedAt = new Date();
+    await this.dataSource.transaction(async (manager) => {
+      await manager
+        .getRepository(PhantomItem)
+        .update({ id: In(unique) }, { deletedAt });
+      await manager
+        .getRepository(PhantomItemComponent)
+        .update(
+          { phantomItemId: In(unique), deletedAt: IsNull() },
+          { deletedAt },
+        );
+    });
+    return { deleted: unique.length };
   }
 
   async addComponent(
@@ -296,6 +366,52 @@ export class PhantomItemService {
     });
   }
 
+  /**
+   * Process and family of a phantom item being created or edited. The process
+   * defaults to the existing one, or to the first process; the family can come
+   * by id or by name, and a name is found or created in the process.
+   */
+  private async resolvePlacement(
+    dto: CreatePhantomItemDto | UpdatePhantomItemDto,
+    existing?: PhantomItem,
+  ): Promise<{
+    processId: number;
+    familyId: number | null;
+    referenceSeparator: string;
+  }> {
+    const processId =
+      dto.processId ??
+      existing?.processId ??
+      (await this.processes.list())[0]?.id;
+    if (processId === undefined) {
+      throw new NotFoundException(
+        'There is no phantom process to put the item in',
+      );
+    }
+    const { referenceSeparator = '' } =
+      await this.processes.findOrFail(processId);
+
+    if (dto.familyName !== undefined && dto.familyName.trim() !== '') {
+      return {
+        processId,
+        referenceSeparator,
+        familyId: await this.processes.getOrCreateFamily(
+          processId,
+          dto.familyName,
+        ),
+      };
+    }
+    if (dto.familyId !== undefined) {
+      if (dto.familyId !== null)
+        await this.processes.assertFamilyInProcess(processId, dto.familyId);
+      return { processId, referenceSeparator, familyId: dto.familyId };
+    }
+    // Moving to another process drops a family that belonged to the old one
+    const keepFamily =
+      existing && existing.processId === processId ? existing.familyId : null;
+    return { processId, referenceSeparator, familyId: keepFamily ?? null };
+  }
+
   private async assertItemCodeIsAvailable(itemCode: string): Promise<void> {
     const duplicate = await this.phantomItemRepository.findOne({
       where: { itemCode, deletedAt: IsNull() },
@@ -314,6 +430,17 @@ export class PhantomItemService {
    * header, so create, update and import all share exactly these rules.
    */
   buildHeader(input: HeaderBuildInput): Partial<PhantomItem> {
+    return this.buildHeaderChecked(input).header;
+  }
+
+  /**
+   * `buildHeader`, plus the length excesses that are accepted with a warning
+   * (see `SOFT_LENGTH_FIELDS`), for the importer to report.
+   */
+  buildHeaderChecked(input: HeaderBuildInput): {
+    header: Partial<PhantomItem>;
+    warnings: Record<string, string>;
+  } {
     const formulaOverrides =
       typeof input.formulaOverrides === 'string'
         ? parseFormulaOverrides(input.formulaOverrides)
@@ -329,12 +456,13 @@ export class PhantomItemService {
       shortDescription: input.shortDescription,
       referenceLengthLimit:
         input.referenceLengthLimit ?? DEFAULT_REFERENCE_LIMIT,
+      referenceSeparator: input.referenceSeparator,
       formulaOverrides,
     });
 
-    validateLengths(derived);
+    const warnings = validateLengths(derived);
 
-    return {
+    const header: Partial<PhantomItem> = {
       finishedProductType: derived.finishedProductType,
       workInProcessType: derived.workInProcessType,
       phantomRootCode: derived.phantomRootCode,
@@ -346,7 +474,15 @@ export class PhantomItemService {
       unitOfMeasure: input.unitOfMeasure,
       referenceLengthLimit: derived.referenceLengthLimit,
       formulaOverrides: serializeFormulaOverrides(formulaOverrides),
+      ...(input.processId === undefined ? {} : { processId: input.processId }),
+      ...(input.familyId === undefined ? {} : { familyId: input.familyId }),
+      ...(input.extraValues === undefined
+        ? {}
+        : {
+            extraValues: serializeExtraValues(asExtraObject(input.extraValues)),
+          }),
     };
+    return { header, warnings };
   }
 
   buildComponent(
@@ -378,6 +514,7 @@ export class PhantomItemService {
       wastePercentage: input.wastePercentage,
       consumptionWarehouse: input.consumptionWarehouse,
       formulaOverrides: serializeFormulaOverrides(formulaOverrides),
+      extraValues: serializeExtraValues(asExtraObject(input.extraValues)),
     };
   }
 

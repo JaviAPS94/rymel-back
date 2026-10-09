@@ -24,6 +24,8 @@ import { SubDesignRecalculation } from '../../modules/design/entities/sub-design
 import { SecureFunctionEngineClient } from '../../modules/design/services/secure-function-engine.client';
 import { ValidationError } from '../../modules/design/validation/design-function-rules';
 import { TemplateType } from '../../common/enums';
+import { DesignFunctionDependencyService } from '../../modules/design/services/design-function-dependency.service';
+import { DesignFunctionDependency } from '../../modules/design/entities/design-function-dependency.entity';
 
 dotenvConfig({ path: '.env' });
 
@@ -70,6 +72,11 @@ async function main(): Promise<void> {
     dataSource.getRepository(SubDesignRecalculation),
     engine,
     dataSource,
+    new DesignFunctionDependencyService(
+      dataSource.getRepository(DesignFunction),
+      dataSource.getRepository(DesignFunctionVersion),
+      dataSource.getRepository(DesignFunctionDependency),
+    ),
   );
   const service = new DesignFunctionVersionService(
     functions,
@@ -78,6 +85,11 @@ async function main(): Promise<void> {
     engine,
     dataSource,
     recalculation,
+    new DesignFunctionDependencyService(
+      dataSource.getRepository(DesignFunction),
+      dataSource.getRepository(DesignFunctionVersion),
+      dataSource.getRepository(DesignFunctionDependency),
+    ),
   );
 
   const probe = await functions.save(

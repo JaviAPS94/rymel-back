@@ -34,9 +34,24 @@ export class PhantomItemComponentOutputDto {
 
   @ApiProperty({ example: { requiredQuantityPerUnit: '=P3/O3' } })
   formulaOverrides: FormulaMap;
+
+  @ApiProperty({ example: { 'custom:lote': 'L-12' } })
+  extraValues: Record<string, string>;
 }
 
 export class PhantomItemOutputDto {
+  @ApiProperty({ example: 2 })
+  processId: number;
+
+  @ApiProperty({ example: 5, nullable: true })
+  familyId: number | null;
+
+  @ApiProperty({ example: 'F. Acc Sol', nullable: true })
+  familyName: string | null;
+
+  @ApiProperty({ example: { 'custom:plan1': '1 / CLASE DE ITEM' } })
+  extraValues: Record<string, string>;
+
   @ApiProperty({ example: 1 })
   id: number;
 

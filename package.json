@@ -34,7 +34,7 @@
     "@nestjs/platform-express": "^10.4.5",
     "@nestjs/swagger": "^7.4.2",
     "@nestjs/typeorm": "^10.0.2",
-    "@rymel/design-template": "github:JaviAPS94/rymel-design-template#v2.0.0",
+    "@rymel/design-template": "github:JaviAPS94/rymel-design-template#v2.1.0",
     "@rymel/formula-engine": "github:JaviAPS94/rymel-formula-engine#v1.6.0",
     "axios": "^1.7.9",
     "bcrypt": "^6.0.0",

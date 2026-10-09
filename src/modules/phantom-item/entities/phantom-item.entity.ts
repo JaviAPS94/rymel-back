@@ -2,10 +2,14 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { PhantomProcess } from './phantom-process.entity';
+import { PhantomFamily } from './phantom-family.entity';
 import { PhantomItemComponent } from './phantom-item-component.entity';
 import { DEFAULT_REFERENCE_LIMIT } from '../constants/phantom-item-columns';
 
@@ -75,6 +79,33 @@ export class PhantomItem {
     nullable: true,
   })
   formulaOverrides: string;
+
+  @ManyToOne(() => PhantomProcess)
+  @JoinColumn({ name: 'process_id' })
+  process: PhantomProcess;
+
+  @Column({ name: 'process_id' })
+  processId: number;
+
+  /** The workbook's «Fantasma» column. Optional. */
+  @ManyToOne(() => PhantomFamily, { nullable: true })
+  @JoinColumn({ name: 'family_id' })
+  family: PhantomFamily | null;
+
+  @Column({ name: 'family_id', type: 'int', nullable: true })
+  familyId: number | null;
+
+  /**
+   * Values of the process's own header-scoped columns (PLAN1, MAYOR1…), as
+   * JSON `{ key: text }`.
+   */
+  @Column({
+    name: 'extra_values',
+    type: 'nvarchar',
+    length: 'max',
+    nullable: true,
+  })
+  extraValues: string | null;
 
   @OneToMany(() => PhantomItemComponent, (component) => component.phantomItem)
   components: PhantomItemComponent[];

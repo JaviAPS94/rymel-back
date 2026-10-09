@@ -49,6 +49,26 @@ describe('derived-fields', () => {
     });
   });
 
+  describe('buildReference with the process rule', () => {
+    it('adds the space the formula of ALISTAMIENTO Y ENCUBE adds', () => {
+      expect(
+        buildReference({
+          finishedProductType: '1AU',
+          workInProcessType: 'EEN',
+          phantomRootCode: 'KIT ALIS',
+          kvaRatingStandard: '0-75 KVA GT',
+          referenceSeparator: ' ',
+        }),
+      ).toBe('F-1AU-EEN-KIT ALIS 0-75 KVA GT');
+    });
+
+    it('adds nothing in EMBLEMADO, whose kVA brings its own hyphen', () => {
+      expect(buildReference({ ...KIT_EMBLE, referenceSeparator: '' })).toBe(
+        buildReference(KIT_EMBLE),
+      );
+    });
+  });
+
   describe('buildShortDescription', () => {
     it('prepends FANTASMA to the root code', () => {
       const shortDescription = buildShortDescription(KIT_EMBLE);
@@ -240,6 +260,26 @@ describe('derived-fields', () => {
       });
       expect(calculateLengths(header).referenceLength).toBeGreaterThan(40);
       expect(() => validateLengths(header)).not.toThrow();
+    });
+
+    it('accepts «Desc. item» over 40 with a warning, as METALMECANICA has it', () => {
+      // 500558: «Desc. item» copies a 42-character reference
+      const header = applyHeaderDerivedFields({
+        finishedProductType: '1AU',
+        workInProcessType: 'TSO',
+        phantomRootCode: 'KITSOLD',
+        kvaRatingStandard: '>=75KVA/D(28-54)CM/M12 HR',
+        referenceLengthLimit: 50,
+        formulaOverrides: {
+          shortDescriptionLength: '=LARGO(finishedProductType)',
+        },
+      });
+
+      expect(header.itemDescription).toHaveLength(42);
+      expect(validateLengths(header)).toEqual({
+        itemDescription:
+          'Measures 42 characters and exceeds the limit of 40 (column "Largo 40").',
+      });
     });
 
     it('rejects a reference limit other than 40 or 50', () => {

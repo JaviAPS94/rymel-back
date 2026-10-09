@@ -15,6 +15,7 @@ import {
   FunctionParametersDto,
 } from '../dtos/calculate-function.dto';
 import { FunctionCalculationResultDto } from '../dtos/calculate-function-response.dto';
+import { DesignFunctionDependencyService } from './design-function-dependency.service';
 
 @Injectable()
 export class DesignFunctionService {
@@ -26,6 +27,7 @@ export class DesignFunctionService {
     @InjectRepository(DesignFunctionVersion)
     private readonly versionRepository: Repository<DesignFunctionVersion>,
     private readonly httpService: HttpService,
+    private readonly dependencies: DesignFunctionDependencyService,
   ) {
     this.secureFunctionEngineUrl = process.env.SECURE_FUNCTION_ENGINE_URL;
   }
@@ -109,6 +111,12 @@ export class DesignFunctionService {
 
       const encryptedFunction = current.expression;
 
+      // Las fórmulas que invoca viajan cifradas con ella, con su versión
+      // vigente: el motor las resuelve sin que su texto salga de allí.
+      const dependencies = DesignFunctionDependencyService.toEngine(
+        await this.dependencies.closure(designFunctionId),
+      );
+
       // Call the secure function engine
       const response = await firstValueFrom(
         this.httpService.post(
@@ -117,6 +125,7 @@ export class DesignFunctionService {
             encryptedFunction,
             parameters,
             constants: parseConstants(current.constants),
+            ...(Object.keys(dependencies).length > 0 ? { dependencies } : {}),
           },
         ),
       );

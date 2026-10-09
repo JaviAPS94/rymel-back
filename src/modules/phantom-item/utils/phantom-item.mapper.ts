@@ -6,6 +6,7 @@ import {
   PhantomItemOutputDto,
 } from '../dtos/phantom-item-output.dto';
 import { calculateLengths, parseFormulaOverrides } from './derived-fields';
+import { parseExtraValues } from './extra-values';
 
 export const toComponentOutput = (
   component: PhantomItemComponent,
@@ -21,6 +22,7 @@ export const toComponentOutput = (
   wastePercentage: component.wastePercentage,
   consumptionWarehouse: component.consumptionWarehouse,
   formulaOverrides: parseFormulaOverrides(component.formulaOverrides),
+  extraValues: parseExtraValues(component.extraValues),
 });
 
 export const toPhantomItemOutput = (
@@ -32,6 +34,10 @@ export const toPhantomItemOutput = (
 
   return {
     id: phantomItem.id,
+    processId: phantomItem.processId,
+    familyId: phantomItem.familyId ?? null,
+    familyName: phantomItem.family?.name ?? null,
+    extraValues: parseExtraValues(phantomItem.extraValues),
     finishedProductType: phantomItem.finishedProductType,
     workInProcessType: phantomItem.workInProcessType,
     phantomRootCode: phantomItem.phantomRootCode,

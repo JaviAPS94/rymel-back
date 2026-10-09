@@ -77,6 +77,14 @@ export class CreatePhantomItemComponentDto {
   @IsOptional()
   @IsObject()
   formulaOverrides?: FormulaMap;
+
+  @ApiPropertyOptional({
+    example: { 'custom:lote': 'L-12' },
+    description: "Values of the process's own line columns",
+  })
+  @IsOptional()
+  @IsObject()
+  extraValues?: Record<string, string>;
 }
 
 export class UpdatePhantomItemComponentDto extends PartialType(

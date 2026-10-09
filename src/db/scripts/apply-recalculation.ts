@@ -18,6 +18,8 @@ import { DesignSubTypeFunction } from '../../modules/design/entities/design-subt
 import { SubDesignRecalculation } from '../../modules/design/entities/sub-design-recalculation.entity';
 import { DesignRecalculationService } from '../../modules/design/services/design-recalculation.service';
 import { SecureFunctionEngineClient } from '../../modules/design/services/secure-function-engine.client';
+import { DesignFunctionDependencyService } from '../../modules/design/services/design-function-dependency.service';
+import { DesignFunctionDependency } from '../../modules/design/entities/design-function-dependency.entity';
 
 dotenvConfig({ path: '.env' });
 
@@ -48,6 +50,11 @@ async function main(): Promise<void> {
     dataSource.getRepository(SubDesignRecalculation),
     new SecureFunctionEngineClient(new HttpService(axios.create())),
     dataSource,
+    new DesignFunctionDependencyService(
+      dataSource.getRepository(DesignFunction),
+      dataSource.getRepository(DesignFunctionVersion),
+      dataSource.getRepository(DesignFunctionDependency),
+    ),
   );
 
   const stale = await service.listStale();

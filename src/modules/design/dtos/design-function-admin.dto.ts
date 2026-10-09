@@ -87,6 +87,13 @@ export class DesignFunctionListItemDto {
 }
 
 /** Detalle para editar: incluye la expresión en claro. */
+/** Una fórmula nombrada, para listarla junto a otra. */
+export class FunctionSummaryDto {
+  @ApiProperty() id: number;
+  @ApiProperty() code: string;
+  @ApiProperty() name: string;
+}
+
 export class DesignFunctionDetailDto {
   @ApiProperty() id: number;
   @ApiProperty() name: string;
@@ -110,6 +117,18 @@ export class DesignFunctionDetailDto {
   @ApiProperty() version: number;
   @ApiProperty() versionId: number;
   @ApiProperty({ type: [Number] }) designSubTypeIds: number[];
+
+  @ApiProperty({
+    type: [FunctionSummaryDto],
+    description: 'Fórmulas que invoca su versión vigente',
+  })
+  invokes: FunctionSummaryDto[];
+
+  @ApiProperty({
+    type: [FunctionSummaryDto],
+    description: 'Fórmulas cuya versión vigente la invoca',
+  })
+  invokedBy: FunctionSummaryDto[];
 }
 
 export class CreateDesignFunctionAdminDto {
@@ -174,6 +193,14 @@ export class TestExpressionDto {
   parameters: Record<string, number>;
 
   @IsOptional() @IsObject() constants?: Record<string, number>;
+
+  @ApiPropertyOptional({
+    enum: TemplateType,
+    description: 'Tipo de la fórmula, para resolver las que invoca',
+  })
+  @IsOptional()
+  @IsEnum(TemplateType)
+  type?: TemplateType;
 }
 
 export class TestExpressionResultDto {
@@ -201,6 +228,13 @@ export class DesignFunctionImpactDto {
   @ApiProperty() designCount: number;
   @ApiProperty({ description: 'De ellos, calculados con una versión anterior' })
   staleSubDesignCount: number;
+
+  @ApiProperty({
+    type: [FunctionSummaryDto],
+    description:
+      'Fórmulas que la invocan, directa o indirectamente. Sus diseños cuentan como afectados',
+  })
+  invokedBy: FunctionSummaryDto[];
 }
 
 export class PublishVersionResultDto {
