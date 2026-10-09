@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsObject,
   IsOptional,
@@ -16,6 +17,41 @@ import { FormulaMap } from '../utils/derived-fields';
 import { ALLOWED_REFERENCE_LIMITS } from '../constants/phantom-item-columns';
 
 export class CreatePhantomItemDto {
+  @ApiPropertyOptional({
+    example: 2,
+    description: 'Process of the phantom item. Defaults to the first process.',
+  })
+  @IsOptional()
+  @IsInt()
+  processId?: number;
+
+  @ApiPropertyOptional({
+    example: 5,
+    nullable: true,
+    description: 'Family within the process. null removes it.',
+  })
+  @IsOptional()
+  @IsInt()
+  familyId?: number | null;
+
+  @ApiPropertyOptional({
+    example: 'F. Acc Sol',
+    description:
+      'Family by name: found or created in the process. Wins over familyId.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  familyName?: string;
+
+  @ApiPropertyOptional({
+    example: { 'custom:plan1': '1 / CLASE DE ITEM' },
+    description: "Values of the process's own header columns",
+  })
+  @IsOptional()
+  @IsObject()
+  extraValues?: Record<string, string>;
+
   @ApiProperty({ example: '1CA' })
   @IsString()
   @IsNotEmpty()

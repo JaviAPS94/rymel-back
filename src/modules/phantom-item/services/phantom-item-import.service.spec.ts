@@ -10,6 +10,7 @@ import { PhantomItem } from '../entities/phantom-item.entity';
 import { PhantomItemComponent } from '../entities/phantom-item-component.entity';
 import { PhantomItemImportMode } from '../dtos/import-phantom-items.dto';
 import { PHANTOM_ITEM_COLUMNS } from '../constants/phantom-item-columns';
+import { InMemoryProcessService } from '../testing/in-memory-process.service';
 
 const HEADERS = PHANTOM_ITEM_COLUMNS.map((column) => column.header);
 const LIMITS = PHANTOM_ITEM_COLUMNS.map((column) =>
@@ -44,6 +45,7 @@ describe('PhantomItemImportService', () => {
   let phantomItemRepository: jest.Mocked<Partial<Repository<PhantomItem>>>;
   let dataSource: DataSource;
   let tempDir: string;
+  let processes: InMemoryProcessService;
 
   /** Components written, keyed by phantom item id */
   let writtenComponents: Map<number, unknown[]>;
@@ -129,16 +131,19 @@ describe('PhantomItemImportService', () => {
       ),
     } as unknown as DataSource;
 
+    processes = new InMemoryProcessService();
     phantomItemService = new PhantomItemService(
       phantomItemRepository as Repository<PhantomItem>,
       componentRepository,
       dataSource,
+      processes.asService(),
     );
 
     service = new PhantomItemImportService(
       phantomItemRepository as Repository<PhantomItem>,
       phantomItemService,
       dataSource,
+      processes.asService(),
     );
   });
 
@@ -369,6 +374,9 @@ describe('PhantomItemImportService', () => {
       expect(result.errors[0].message).toContain('N/A');
       expect(result.created).toBe(1);
       expect(writtenComponents.get(1)).toHaveLength(1);
+      // Regression: the rejected first row left a gap (sortOrder 1), which an
+      // export and import again closed, so the round trip was not identical
+      expect(writtenComponents.get(1)![0]).toMatchObject({ sortOrder: 0 });
     });
 
     it('reports the row without a component item', async () => {
@@ -407,7 +415,8 @@ describe('PhantomItemImportService', () => {
       );
 
       expect(result.errors).toHaveLength(1);
-      expect(result.errors[0]).toMatchObject({ column: 'item' });
+      // The column is named with the sheet's own header, like every other issue
+      expect(result.errors[0]).toMatchObject({ column: 'Item' });
       expect(result.created).toBe(0);
     });
 
@@ -516,6 +525,41 @@ describe('PhantomItemImportService', () => {
       await expect(
         service.import(path, PhantomItemImportMode.CREATE, false),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('reads a repeated header from the column with the most data, as in METALMECANICA', async () => {
+      const line = (componentItemCode: string) =>
+        row({
+          ...KIT_EMBLE_HEADER,
+          componentItemCode,
+          baseQuantity: 100,
+          requiredQuantity: 1,
+        });
+      // A first «Item» with a label on one row, and the real one with the codes
+      const path = await createFile(
+        [
+          ['TAPA SOLO CR 14', ...line('4789')],
+          [null, ...line('4790')],
+          [null, ...line('4791')],
+        ],
+        { headers: ['Item', ...HEADERS], includeLimitsRow: false },
+      );
+
+      const result = await service.import(
+        path,
+        PhantomItemImportMode.CREATE,
+        false,
+      );
+
+      expect(result.created).toBe(1);
+      expect(savedHeaders[0].itemCode).toBe('500190');
+      expect(writtenComponents.get(1)).toHaveLength(3);
+      expect(result.warnings).toContainEqual(
+        expect.objectContaining({
+          column: 'Item',
+          message: expect.stringContaining('the most data'),
+        }),
+      );
     });
 
     it('rejects a file without recognizable headers', async () => {

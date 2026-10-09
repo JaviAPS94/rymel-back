@@ -1,3 +1,4 @@
+import { InMemoryProcessService } from '../testing/in-memory-process.service';
 import { Repository } from 'typeorm';
 import * as ExcelJS from 'exceljs';
 import { PhantomItemExportService } from './phantom-item-export.service';
@@ -21,6 +22,10 @@ const buildPhantomItem = (overrides: Partial<PhantomItem> = {}): PhantomItem =>
     unitOfMeasure: 'UND',
     referenceLengthLimit: 40,
     formulaOverrides: null,
+    processId: 1,
+    familyId: null,
+    family: null,
+    extraValues: null,
     ...overrides,
   }) as PhantomItem;
 
@@ -43,7 +48,10 @@ const buildComponent = (
     ...overrides,
   }) as PhantomItemComponent;
 
-/** Reads the generated buffer and returns its rows as flat arrays */
+/**
+ * Reads the generated buffer and returns the «General» sheet's rows as flat
+ * arrays of the catalog columns, without the family column in front.
+ */
 const readBuffer = async (buffer: ExcelJS.Buffer): Promise<unknown[][]> => {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer as ArrayBuffer);
@@ -53,10 +61,27 @@ const readBuffer = async (buffer: ExcelJS.Buffer): Promise<unknown[][]> => {
   sheet.eachRow({ includeEmpty: false }, (row) => {
     const values = row.values as unknown[];
     rows.push(
-      PHANTOM_ITEM_COLUMNS.map((_, index) => values[index + 1] ?? null),
+      PHANTOM_ITEM_COLUMNS.map((_, index) => values[index + 2] ?? null),
     );
   });
   return rows;
+};
+
+/** Every sheet, as raw rows including the family column */
+const readSheets = async (
+  buffer: ExcelJS.Buffer,
+): Promise<Record<string, unknown[][]>> => {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer as ArrayBuffer);
+  const sheets: Record<string, unknown[][]> = {};
+  for (const sheet of workbook.worksheets) {
+    const rows: unknown[][] = [];
+    sheet.eachRow({ includeEmpty: true }, (row) =>
+      rows.push((row.values as unknown[]).slice(1)),
+    );
+    sheets[sheet.name] = rows;
+  }
+  return sheets;
 };
 
 describe('PhantomItemExportService', () => {
@@ -66,15 +91,19 @@ describe('PhantomItemExportService', () => {
     Partial<Repository<PhantomItemComponent>>
   >;
   let phantomItems: PhantomItem[];
+  let processes: InMemoryProcessService;
 
   beforeEach(() => {
+    processes = new InMemoryProcessService();
     phantomItems = [];
 
     phantomItemRepository = {
       createQueryBuilder: jest.fn(() => ({
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
         getMany: jest.fn(async () => phantomItems),
       })),
     } as unknown as Repository<PhantomItem>;
@@ -84,6 +113,7 @@ describe('PhantomItemExportService', () => {
     service = new PhantomItemExportService(
       phantomItemRepository,
       componentRepository as Repository<PhantomItemComponent>,
+      processes.asService(),
     );
   });
 
@@ -172,6 +202,107 @@ describe('PhantomItemExportService', () => {
 
       expect(dataRow[6]).toBe(18); // measures shortDescription, not reference
       expect(dataRow[8]).toBe(37); // itemDescriptionLength still measures itemDescription
+    });
+  });
+
+  describe('workbook by process', () => {
+    beforeEach(async () => {
+      await processes.create('ALISTAMIENTO Y ENCUBE', [
+        { key: 'itemCode', header: 'Item', scope: 'HEADER' as never },
+        { key: 'custom:plan1', header: 'PLAN1', scope: 'HEADER' as never },
+        {
+          key: 'componentItemCode',
+          header: 'ÍTEM - COMPONENTE',
+          scope: 'COMPONENT' as never,
+        },
+        {
+          key: 'baseQuantity',
+          header: 'CANT. BASE',
+          scope: 'COMPONENT' as never,
+        },
+        {
+          key: 'requiredQuantity',
+          header: 'CANT. REQUERIDA LMS',
+          scope: 'COMPONENT' as never,
+        },
+        { key: 'custom:lote', header: 'LOTE', scope: 'COMPONENT' as never },
+      ]);
+    });
+
+    it('writes one sheet per process, in order, each with its own headers and the family first', async () => {
+      phantomItems = [
+        buildPhantomItem({
+          id: 7,
+          processId: 2,
+          itemCode: '500452',
+          family: { name: 'F. Acc Alis' } as never,
+          extraValues: JSON.stringify({ 'custom:plan1': '1 / CLASE DE ITEM' }),
+        }),
+      ];
+      (componentRepository.find as jest.Mock).mockResolvedValue([
+        buildComponent({
+          phantomItemId: 7,
+          componentItemCode: '306',
+          requiredQuantity: 4,
+          extraValues: JSON.stringify({ 'custom:lote': 'L-1' }),
+        } as never),
+        buildComponent({
+          id: 2,
+          phantomItemId: 7,
+          componentItemCode: '307',
+          requiredQuantity: 2,
+        }),
+      ]);
+
+      const sheets = await readSheets(await service.export({}));
+
+      expect(Object.keys(sheets)).toEqual(['General', 'ALISTAMIENTO Y ENCUBE']);
+      expect(sheets.General).toHaveLength(2);
+      const alistamiento = sheets['ALISTAMIENTO Y ENCUBE'];
+      expect(alistamiento[1]).toEqual([
+        'Fantasma',
+        'Item',
+        'PLAN1',
+        'ÍTEM - COMPONENTE',
+        'CANT. BASE',
+        'CANT. REQUERIDA LMS',
+        'LOTE',
+      ]);
+      expect(alistamiento[2]).toEqual([
+        'F. Acc Alis',
+        '500452',
+        '1 / CLASE DE ITEM',
+        '306',
+        100,
+        4,
+        'L-1',
+      ]);
+      // The own header column repeats on every line; the line column does not
+      expect(alistamiento[3]).toEqual([
+        'F. Acc Alis',
+        '500452',
+        '1 / CLASE DE ITEM',
+        '307',
+        100,
+        2,
+        undefined,
+      ]);
+    });
+
+    it('exports a single process when asked', async () => {
+      const sheets = await readSheets(await service.export({ processId: 2 }));
+      expect(Object.keys(sheets)).toEqual(['ALISTAMIENTO Y ENCUBE']);
+    });
+
+    it('makes sheet names valid and unique for Excel', async () => {
+      await processes.create(
+        'A/B: proceso con un nombre demasiado largo para Excel',
+      );
+      const sheets = await readSheets(await service.buildTemplate());
+      const names = Object.keys(sheets);
+      expect(
+        names.every((name) => name.length <= 31 && !/[\\/?*[\]:]/.test(name)),
+      ).toBe(true);
     });
   });
 });

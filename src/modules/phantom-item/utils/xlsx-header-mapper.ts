@@ -49,16 +49,22 @@ const HEADER_ALIASES: Record<string, string> = {
   'cant. base': 'baseQuantity',
   'cant requerida': 'requiredQuantity',
   'cant. requerida': 'requiredQuantity',
+  // EMBLEMADO's name for the same quantity
+  'cant requerida lms': 'requiredQuantity',
+  'cant. requerida lms': 'requiredQuantity',
   'cant requerida unitaria': 'requiredQuantityPerUnit',
   'cant. requerida unitaria': 'requiredQuantityPerUnit',
   'u.m': 'componentUnitOfMeasure',
   um: 'unitOfMeasure',
   '% desp.': 'wastePercentage',
   '% desp': 'wastePercentage',
+  // METALMECANICA's name for the same waste percentage
+  '% desp. lamina': 'wastePercentage',
+  '% desp lamina': 'wastePercentage',
   'bodega consumo': 'consumptionWarehouse',
 };
 
-const resolveField = (rawHeader: string): string | undefined => {
+export const resolveField = (rawHeader: string): string | undefined => {
   const normalized = normalizeHeader(rawHeader);
   if (!normalized) return undefined;
   return normalizedHeaderToField.get(normalized) ?? HEADER_ALIASES[normalized];

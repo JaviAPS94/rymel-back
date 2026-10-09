@@ -7,6 +7,7 @@ import { DataSource, EntityManager, Repository } from 'typeorm';
 import { PhantomItemService } from './phantom-item.service';
 import { PhantomItem } from '../entities/phantom-item.entity';
 import { PhantomItemComponent } from '../entities/phantom-item-component.entity';
+import { InMemoryProcessService } from '../testing/in-memory-process.service';
 
 const BASE_DTO = {
   finishedProductType: '1CA',
@@ -86,6 +87,7 @@ describe('PhantomItemService', () => {
       phantomItemRepository as Repository<PhantomItem>,
       componentRepository as Repository<PhantomItemComponent>,
       dataSource,
+      new InMemoryProcessService().asService(),
     );
   });
 
@@ -192,6 +194,35 @@ describe('PhantomItemService', () => {
       expect(insertedComponents[1].sortOrder).toBe(1);
     });
 
+    it("builds the reference with the process's rule", async () => {
+      const processes = new InMemoryProcessService();
+      const alistamiento = await processes.create(
+        'ALISTAMIENTO Y ENCUBE',
+        undefined,
+        {
+          referenceSeparator: ' ',
+        },
+      );
+      const withProcesses = new PhantomItemService(
+        phantomItemRepository as Repository<PhantomItem>,
+        componentRepository as Repository<PhantomItemComponent>,
+        dataSource,
+        processes.asService(),
+      );
+      jest
+        .spyOn(withProcesses, 'findOne')
+        .mockResolvedValue({ id: 1 } as never);
+
+      await withProcesses.create({
+        ...BASE_DTO,
+        kvaRatingStandard: '0-75 KVA GT',
+        processId: alistamiento.id,
+      });
+
+      expect(savedHeaders[0].reference).toBe('F-1CA-TPI-KIT EMBLE 0-75 KVA GT');
+      expect(savedHeaders[0]).not.toHaveProperty('referenceSeparator');
+    });
+
     it('rejects a duplicate item code', async () => {
       (phantomItemRepository.findOne as jest.Mock).mockResolvedValue({
         id: 9,
@@ -286,6 +317,31 @@ describe('PhantomItemService', () => {
       (phantomItemRepository.findOne as jest.Mock).mockResolvedValue(null);
 
       await expect(service.remove(99)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('removeMany', () => {
+    beforeEach(() => {
+      phantomItemRepository.find = jest
+        .fn()
+        .mockResolvedValue([{ id: 3 }, { id: 7 }] as PhantomItem[]);
+    });
+
+    it('deletes the selected phantom items and their components in one transaction', async () => {
+      const result = await service.removeMany([3, 7, 3]);
+
+      expect(result).toEqual({ deleted: 2 });
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      // The components of both, in the same transaction
+      expect(softDeletedComponents).toHaveLength(1);
+      expect(JSON.stringify(softDeletedComponents[0])).toContain('[3,7]');
+    });
+
+    it('deletes nothing if one of them does not exist', async () => {
+      await expect(service.removeMany([3, 7, 99])).rejects.toThrow(
+        'Phantom items not found: 99',
+      );
+      expect(dataSource.transaction).not.toHaveBeenCalled();
     });
   });
 

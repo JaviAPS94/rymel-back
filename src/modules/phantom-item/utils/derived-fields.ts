@@ -20,6 +20,8 @@ export interface HeaderDerivationInput {
   itemDescription?: string;
   shortDescription?: string;
   referenceLengthLimit?: number;
+  /** The process's: what goes between the phantom root and the kVA */
+  referenceSeparator?: string;
   formulaOverrides?: FormulaMap;
 }
 
@@ -55,18 +57,22 @@ export const serializeFormulaOverrides = (
   return JSON.stringify(formulaOverrides);
 };
 
+/** What a process may put between the phantom root and the kVA */
+export const REFERENCE_SEPARATORS = ['', ' '];
+
 /**
  * Default rule for `reference`.
  *
- * The separator before `kvaRatingStandard` travels inside the field itself:
- * in the KIT EMBLE template it is `-GY-GENERICO-AD-AZ` (own hyphen) and in
- * the KIT ENCU one ` 43_3/4_4H_125` (own space). That's why it's a direct
- * concatenation.
+ * Depends on the process. In EMBLEMADO the separator before
+ * `kvaRatingStandard` travels inside the field itself (`-GY-GENERICO-AD-AZ`,
+ * own hyphen), so it is a direct concatenation. In the other sheets of the
+ * business's workbook the formula adds a space —
+ * `CONCATENATE("F-",C,"-",D,"-",E," ",F)`— and the kVA comes without one.
  */
 export const buildReference = (input: HeaderDerivationInput): string =>
   `F-${input.finishedProductType ?? ''}-${input.workInProcessType ?? ''}-${
     input.phantomRootCode ?? ''
-  }${input.kvaRatingStandard ?? ''}`;
+  }${input.referenceSeparator ?? ''}${input.kvaRatingStandard ?? ''}`;
 
 export const buildShortDescription = (input: HeaderDerivationInput): string =>
   `FANTASMA ${input.phantomRootCode ?? ''}`;
@@ -202,11 +208,24 @@ export const resolveReferenceLimit = (limit?: number): number => {
 };
 
 /**
+ * Lengths whose excess is reported but accepted. «Desc. item» copies the
+ * reference, which can measure up to 50, while its own column says «Largo
+ * 40»: the business's workbook has 46 phantom items in METALMECANICA like
+ * that, and rejecting them would leave real phantoms out.
+ */
+export const SOFT_LENGTH_FIELDS = ['itemDescriptionLength'];
+
+/**
  * Validates that each length fits its limit. `itemDescriptionLength` and
  * `shortDescriptionLength` use the template's fixed limits;
  * `referenceLength` uses the phantom item's own limit.
+ *
+ * @returns the excesses that are only warned about, by source field
+ * @throws BadRequestException for any other excess
  */
-export const validateLengths = (header: HeaderDerivationInput): void => {
+export const validateLengths = (
+  header: HeaderDerivationInput,
+): Record<string, string> => {
   const referenceLengthLimit = resolveReferenceLimit(
     header.referenceLengthLimit,
   );
@@ -224,6 +243,7 @@ export const validateLengths = (header: HeaderDerivationInput): void => {
 
   const lengths = calculateLengths(header);
   const errors: Record<string, string[]> = {};
+  const warnings: Record<string, string> = {};
 
   PHANTOM_ITEM_COLUMNS.filter(
     (column) => column.scope === PhantomItemFieldScope.LENGTH,
@@ -237,13 +257,17 @@ export const validateLengths = (header: HeaderDerivationInput): void => {
             header.formulaOverrides[column.field],
           )
         : column.defaultLengthSource;
-      errors[sourceField] = [
-        `Measures ${actual} characters and exceeds the limit of ${limit} (column "${column.header}").`,
-      ];
+      const message = `Measures ${actual} characters and exceeds the limit of ${limit} (column "${column.header}").`;
+      if (SOFT_LENGTH_FIELDS.includes(column.field)) {
+        warnings[sourceField] = message;
+      } else {
+        errors[sourceField] = [message];
+      }
     }
   });
 
   if (Object.keys(errors).length > 0) {
     throw new BadRequestException({ message: 'Validation failed', errors });
   }
+  return warnings;
 };

@@ -39,4 +39,16 @@ export class PhantomItemsFiltersPaginatedDto {
   @IsOptional()
   @IsString()
   phantomRootCode?: string;
+
+  @ApiPropertyOptional({ example: 2 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  processId?: number;
+
+  @ApiPropertyOptional({ example: 5 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  familyId?: number;
 }

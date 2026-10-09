@@ -7,13 +7,28 @@ import { PhantomItemService } from './services/phantom-item.service';
 import { PhantomItemImportService } from './services/phantom-item-import.service';
 import { PhantomItemExportService } from './services/phantom-item-export.service';
 
+import { PhantomProcess } from './entities/phantom-process.entity';
+import { PhantomFamily } from './entities/phantom-family.entity';
+import { PhantomProcessColumn } from './entities/phantom-process-column.entity';
+
+import { PhantomProcessController } from './phantom-process.controller';
+import { PhantomProcessService } from './services/phantom-process.service';
 @Module({
-  imports: [TypeOrmModule.forFeature([PhantomItem, PhantomItemComponent])],
-  controllers: [PhantomItemController],
+  imports: [
+    TypeOrmModule.forFeature([
+      PhantomItem,
+      PhantomItemComponent,
+      PhantomProcess,
+      PhantomFamily,
+      PhantomProcessColumn,
+    ]),
+  ],
+  controllers: [PhantomItemController, PhantomProcessController],
   providers: [
     PhantomItemService,
     PhantomItemImportService,
     PhantomItemExportService,
+    PhantomProcessService,
   ],
   exports: [PhantomItemService],
 })

@@ -5,6 +5,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import * as dotenv from 'dotenv';
 import { join } from 'path';
 import { ValidationPipe } from '@nestjs/common';
+import { usePasteBodyParser } from './common/http/paste-body-parser';
 
 dotenv.config();
 
@@ -45,6 +46,8 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, options);
   SwaggerModule.setup('api-docs', app, document);
+
+  usePasteBodyParser(app);
 
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads', // Adds /uploads to URL path

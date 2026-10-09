@@ -123,8 +123,13 @@ export class DesignService {
       .leftJoinAndSelect('element.norm', 'norm')
       .leftJoinAndSelect('norm.country', 'country')
       .leftJoinAndSelect('design.subDesigns', 'subDesigns')
-      .where('country.id = :country', { country })
-      .andWhere('design.deletedAt IS NULL');
+      .where('design.deletedAt IS NULL');
+
+    // Solo si llega: sin país, la comparación con NULL no devolvía ningún
+    // diseño, y el admin necesita verlos todos. El diseñador siempre lo envía.
+    if (country !== undefined && country !== null) {
+      queryBuilder.andWhere('country.id = :country', { country });
+    }
 
     if (name && name.trim() !== '') {
       queryBuilder.andWhere('norm.name LIKE :name', { name: `%${name}%` });

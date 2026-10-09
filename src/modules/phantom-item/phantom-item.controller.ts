@@ -42,6 +42,7 @@ import {
   UpdatePhantomItemComponentDto,
 } from './dtos/phantom-item-component.dto';
 import { PhantomItemsFiltersPaginatedDto } from './dtos/phantom-items-filters-paginated.dto';
+import { BulkDeletePhantomItemsDto } from './dtos/bulk-delete-phantom-items.dto';
 import {
   PhantomItemDetailOutputDto,
   PhantomItemListOutputDto,
@@ -49,6 +50,7 @@ import {
 import {
   PhantomItemImportMode,
   ImportResultDto,
+  PastePhantomItemsDto,
 } from './dtos/import-phantom-items.dto';
 
 const MAX_IMPORT_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -85,15 +87,27 @@ export class PhantomItemController {
 
   @Get('template')
   @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Downloads the empty import template' })
-  async downloadTemplate(@Res() res: Response): Promise<void> {
-    const buffer = await this.exportService.buildTemplate();
+  @ApiOperation({
+    summary:
+      'Downloads the empty workbook: one sheet per process, or only the given process',
+  })
+  async downloadTemplate(
+    @Query('processId') processId: string | undefined,
+    @Res() res: Response,
+  ): Promise<void> {
+    const parsed = processId ? Number.parseInt(processId, 10) : undefined;
+    const buffer = await this.exportService.buildTemplate(
+      Number.isInteger(parsed) ? parsed : undefined,
+    );
     this.sendWorkbook(res, buffer, 'phantom-items-template.xlsx');
   }
 
   @Get('export')
   @Roles(Role.ADMIN, Role.DESIGN, Role.NORM)
-  @ApiOperation({ summary: 'Exports the catalog in the template format' })
+  @ApiOperation({
+    summary:
+      'Exports the workbook: one sheet per process, or only processId if given',
+  })
   async export(
     @Query(ValidationPipe) filters: PhantomItemsFiltersPaginatedDto,
     @Query('ids') ids: string,
@@ -141,6 +155,19 @@ export class PhantomItemController {
     @Body(ValidationPipe) dto: UpdatePhantomItemDto,
   ): Promise<PhantomItemDetailOutputDto> {
     return this.phantomItemService.update(id, dto);
+  }
+
+  @Post('bulk-delete')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Soft-deletes several phantom items and their components; all or nothing',
+  })
+  async removeMany(
+    @Body(ValidationPipe) dto: BulkDeletePhantomItemsDto,
+  ): Promise<{ deleted: number }> {
+    return this.phantomItemService.removeMany(dto.ids);
   }
 
   @Delete(':id')
@@ -248,6 +275,24 @@ export class PhantomItemController {
       // The uploaded file is temporary: nothing stays on disk either way
       await unlink(file.path).catch(() => undefined);
     }
+  }
+
+  @Post('import/paste')
+  @Roles(Role.ADMIN)
+  @ApiOperation({
+    summary:
+      'Imports rows copied from Excel into one process. With dryRun=true validates without writing.',
+  })
+  @ApiResponse({ status: 201, type: ImportResultDto })
+  async importPasted(
+    @Body(ValidationPipe) dto: PastePhantomItemsDto,
+  ): Promise<ImportResultDto> {
+    return this.importService.importPasted(
+      dto.processId,
+      dto.text,
+      dto.mode ?? PhantomItemImportMode.CREATE,
+      dto.dryRun ?? false,
+    );
   }
 
   private sendWorkbook(

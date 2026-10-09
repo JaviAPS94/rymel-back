@@ -1,3 +1,4 @@
+import { InMemoryProcessService } from '../testing/in-memory-process.service';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { writeFile, mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
@@ -31,6 +32,9 @@ describe('Phantom items: export and reimport', () => {
       unitOfMeasure: 'UND',
       referenceLengthLimit: 40,
       formulaOverrides: null,
+      processId: 1,
+      familyId: null,
+      extraValues: null,
     } as PhantomItem,
     {
       id: 2,
@@ -45,6 +49,9 @@ describe('Phantom items: export and reimport', () => {
       unitOfMeasure: 'UND',
       referenceLengthLimit: 40,
       formulaOverrides: null,
+      processId: 1,
+      familyId: null,
+      extraValues: null,
     } as PhantomItem,
   ];
 
@@ -105,9 +112,11 @@ describe('Phantom items: export and reimport', () => {
     // --- Export ---
     const exportPhantomItemRepository = {
       createQueryBuilder: jest.fn(() => ({
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue(catalog),
       })),
     } as unknown as Repository<PhantomItem>;
@@ -116,9 +125,11 @@ describe('Phantom items: export and reimport', () => {
       find: jest.fn().mockResolvedValue(components),
     } as unknown as Repository<PhantomItemComponent>;
 
+    const processes = new InMemoryProcessService();
     const exportService = new PhantomItemExportService(
       exportPhantomItemRepository,
       exportComponentRepository,
+      processes.asService(),
     );
 
     const buffer = await exportService.export({});
@@ -174,12 +185,14 @@ describe('Phantom items: export and reimport', () => {
       importPhantomItemRepository,
       {} as Repository<PhantomItemComponent>,
       dataSource,
+      processes.asService(),
     );
 
     const importService = new PhantomItemImportService(
       importPhantomItemRepository,
       phantomItemService,
       dataSource,
+      processes.asService(),
     );
 
     const result = await importService.import(
