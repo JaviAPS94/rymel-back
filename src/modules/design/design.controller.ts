@@ -33,6 +33,11 @@ import {
   GenerateDesignCodeDto,
 } from '../design-code-rules/dtos/generate-design-code.dto';
 import { DesignBomAdjustmentService } from './services/design-bom-adjustment.service';
+import { DesignBomReviewService } from './services/design-bom-review.service';
+import {
+  DesignBomReviewFiltersDto,
+  DesignBomReviewPageDto,
+} from './dtos/design-bom-review.dto';
 import {
   DesignBomAdjustmentDto,
   SaveDesignBomAdjustmentDto,
@@ -48,6 +53,7 @@ export class DesignController {
     private readonly designService: DesignService,
     private readonly designCodeGenerationService: DesignCodeGenerationService,
     private readonly designBomAdjustmentService: DesignBomAdjustmentService,
+    private readonly designBomReviewService: DesignBomReviewService,
   ) {}
 
   @Get('/code/is-available')
@@ -373,6 +379,25 @@ export class DesignController {
       await this.designService.updateDesign(id, updateDesignDto);
     } catch (error) {
       throw new HttpException(error.message, error.getStatus());
+    }
+  }
+
+  @Post('/bom-review')
+  @Roles(Role.ADMIN)
+  @ApiResponse({
+    status: 200,
+    description:
+      'Designs with the state of their bill of materials, for the admin to review.',
+    type: DesignBomReviewPageDto,
+  })
+  async getBomReview(
+    @Body(ValidationPipe) filters: DesignBomReviewFiltersDto,
+  ): Promise<DesignBomReviewPageDto> {
+    try {
+      return await this.designBomReviewService.list(filters);
+    } catch (error) {
+      console.error('Error in getBomReview:', error);
+      throw new HttpException(error.message, error?.getStatus?.() ?? 500);
     }
   }
 

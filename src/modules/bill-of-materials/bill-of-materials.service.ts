@@ -10,6 +10,7 @@ import { BillOfMaterialsNode } from './entities/bill-of-materials-node.entity';
 import { CreateBillOfMaterialsDto } from './dtos/create-bill-of-materials.dto';
 import { UpdateBillOfMaterialsDto } from './dtos/update-bill-of-materials.dto';
 import { CreateBomNodeDto } from './dtos/create-bom-node.dto';
+import { bomMatchesReference } from './bom-reference-match';
 import { UpdateBomNodeDto } from './dtos/update-bom-node.dto';
 
 @Injectable()
@@ -54,8 +55,7 @@ export class BillOfMaterialsService {
   async findByCode(code: string) {
     const bom = await this.bomRepository
       .createQueryBuilder('bom')
-      .where(`:code LIKE CONCAT(bom.code, '%')`, { code })
-      .andWhere('bom.deleted_at IS NULL')
+      .where(bomMatchesReference('bom', ':code'), { code })
       .getOne();
 
     if (!bom)
