@@ -138,3 +138,18 @@ export class RecalculateDesignDto {
 }
 
 export type RecalculateDesignResponse = RecalculationReport;
+
+/** Con qué versión de cada fórmula se calculó una hoja, frente a la vigente. */
+export class SubDesignVersionsDto {
+  @ApiProperty() subDesignId: number;
+  @ApiProperty() name: string;
+  @ApiProperty({ description: 'Calculada con una versión que ya no es la vigente' }) stale: boolean;
+  @ApiProperty() functions: {
+    functionId: number;
+    code?: string;
+    name?: string;
+    /** Versión con la que se calculó; ausente si la versión ya no existe. */
+    usedVersion?: number;
+    currentVersion?: number;
+  }[];
+}

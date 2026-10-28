@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   Param,
   ParseIntPipe,
@@ -17,6 +18,7 @@ import {
   AdminDesignFiltersDto,
   AdminDesignPageDto,
   RecalculateDesignDto,
+  SubDesignVersionsDto,
   type RecalculateDesignResponse,
 } from './dtos/admin-designs.dto';
 
@@ -37,6 +39,14 @@ export class AdminDesignsController {
   @ApiResponse({ status: 200, type: AdminDesignPageDto })
   list(@Body(ValidationPipe) filters: AdminDesignFiltersDto): Promise<AdminDesignPageDto> {
     return this.service.list(filters);
+  }
+
+  @Get(':id/versions')
+  @ApiOperation({ summary: 'Con qué versión de cada fórmula se calculó cada hoja' })
+  @ApiResponse({ status: 200, type: [SubDesignVersionsDto] })
+  @ApiResponse({ status: 404, description: 'Design not found.' })
+  versions(@Param('id', ParseIntPipe) id: number): Promise<SubDesignVersionsDto[]> {
+    return this.service.versions(id);
   }
 
   @Post(':id/recalculate')

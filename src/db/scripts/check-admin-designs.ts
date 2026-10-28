@@ -139,6 +139,23 @@ async function main(): Promise<void> {
     check('la base queda como estaba', sameIds(await sql(active), activos));
   }
 
+  console.log('\n--- versiones');
+  const [conSello] = await dataSource.query(
+    `SELECT TOP 1 sd.design_id AS id, sd.function_versions AS fv FROM sub_design sd JOIN design d ON d.id = sd.design_id
+     WHERE d.deleted_at IS NULL AND sd.deleted_at IS NULL AND sd.function_versions IS NOT NULL AND sd.function_versions <> '{}'`,
+  );
+  if (conSello) {
+    const hojas = await service.versions(conSello.id);
+    const sello = JSON.parse(conSello.fv) as Record<string, number>;
+    const [functionId, versionId] = Object.entries(sello)[0]!;
+    const [esperada] = await dataSource.query(`SELECT version FROM design_function_version WHERE id = @0`, [versionId]);
+    const fn = hojas.flatMap((hoja) => hoja.functions).find((f) => f.functionId === Number(functionId));
+    check(`diseño ${conSello.id}: versión usada traducida a número`, fn?.usedVersion === esperada?.version && !!fn?.code,
+      `${fn?.code} v${fn?.usedVersion}, vigente v${fn?.currentVersion}`);
+  } else {
+    check('hay algún diseño con versiones estampadas', false);
+  }
+
   console.log('\n--- acceso');
   check('solo ADMIN', JSON.stringify(Reflect.getMetadata(ROLES_KEY, AdminDesignsController)) === '["ADMIN"]');
 

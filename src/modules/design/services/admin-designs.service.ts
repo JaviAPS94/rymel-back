@@ -7,6 +7,7 @@ import {
   AdminDesignFiltersDto,
   AdminDesignPageDto,
   NamedOption,
+  SubDesignVersionsDto,
 } from '../dtos/admin-designs.dto';
 import {
   DesignRecalculationService,
@@ -178,6 +179,65 @@ export class AdminDesignsService {
       ),
     ]);
     return { norms, countries, designTypes, designSubTypes };
+  }
+
+  /**
+   * El estado de versiones de cada hoja del diseño: qué fórmulas usó, con qué
+   * versión, y cuál es la vigente. `function_versions` guarda ids de versión;
+   * aquí se traducen a código, nombre y número.
+   */
+  async versions(id: number): Promise<SubDesignVersionsDto[]> {
+    const exists = await this.dataSource.getRepository(Design).exists({
+      where: { id, deletedAt: IsNull() },
+    });
+    if (!exists) throw new NotFoundException('Design not found');
+    const subDesigns = await this.dataSource.getRepository(SubDesign).find({
+      where: { design: { id }, deletedAt: IsNull() },
+      order: { id: 'ASC' },
+    });
+    const stamps = subDesigns.map((subDesign) => {
+      try {
+        return JSON.parse(subDesign.functionVersions || '{}') as Record<string, number>;
+      } catch {
+        return {};
+      }
+    });
+    const functionIds = [...new Set(stamps.flatMap((stamp) => Object.keys(stamp).map(Number)))];
+    const versionIds = [...new Set(stamps.flatMap((stamp) => Object.values(stamp)))];
+    const params = (values: number[], from = 0) => values.map((_, index) => `@${from + index}`).join(', ');
+    const functions: { id: number; code?: string; name?: string; current?: number }[] = functionIds.length
+      ? await this.dataSource.query(
+          `SELECT f.id, f.code, f.name,
+             (SELECT MAX(v.version) FROM design_function_version v
+              WHERE v.design_function_id = f.id AND v.is_current = 1) AS [current]
+           FROM design_function f WHERE f.id IN (${params(functionIds)})`,
+          functionIds,
+        )
+      : [];
+    const versions: { id: number; version: number }[] = versionIds.length
+      ? await this.dataSource.query(
+          `SELECT id, version FROM design_function_version WHERE id IN (${params(versionIds)})`,
+          versionIds,
+        )
+      : [];
+    const functionOf = new Map(functions.map((row) => [row.id, row]));
+    const versionOf = new Map(versions.map((row) => [row.id, row.version]));
+
+    return subDesigns.map((subDesign, index) => ({
+      subDesignId: subDesign.id,
+      name: subDesign.name,
+      stale: subDesign.isStale,
+      functions: Object.entries(stamps[index]!).map(([functionId, versionId]) => {
+        const fn = functionOf.get(Number(functionId));
+        return {
+          functionId: Number(functionId),
+          code: fn?.code ?? undefined,
+          name: fn?.name ?? undefined,
+          usedVersion: versionOf.get(versionId),
+          currentVersion: fn?.current ?? undefined,
+        };
+      }),
+    }));
   }
 
   /**
