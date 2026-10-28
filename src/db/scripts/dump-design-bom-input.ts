@@ -17,6 +17,9 @@ import { DesignResponseDto } from '../../modules/design/dtos/design-response.dto
 import { BillOfMaterialsService } from '../../modules/bill-of-materials/bill-of-materials.service';
 import { BillOfMaterials } from '../../modules/bill-of-materials/entities/bill-of-materials.entity';
 import { BillOfMaterialsNode } from '../../modules/bill-of-materials/entities/bill-of-materials-node.entity';
+import { BillOfMaterialsNodePhantomFamily } from '../../modules/bill-of-materials/entities/bill-of-materials-node-phantom-family.entity';
+import { BillOfMaterialsProductType } from '../../modules/bill-of-materials/entities/bill-of-materials-product-type.entity';
+import { PhantomFamily } from '../../modules/phantom-item/entities/phantom-family.entity';
 
 dotenvConfig({ path: '.env' });
 
@@ -36,7 +39,11 @@ async function main(): Promise<void> {
 
   // Lo mismo que serializa el controlador: la respuesta pasa por JSON.
   const design = JSON.parse(
-    JSON.stringify(new DesignResponseDto(await new DesignService(dataSource).findById(designId))),
+    JSON.stringify(
+      new DesignResponseDto(
+        await new DesignService(dataSource).findById(designId),
+      ),
+    ),
   );
   const reference = design.designElements[0]?.element?.sapReference;
   const bom = JSON.parse(
@@ -44,12 +51,21 @@ async function main(): Promise<void> {
       await new BillOfMaterialsService(
         dataSource.getRepository(BillOfMaterials),
         dataSource.getRepository(BillOfMaterialsNode),
+        dataSource.getRepository(BillOfMaterialsNodePhantomFamily),
+        dataSource.getRepository(BillOfMaterialsProductType),
+        dataSource.getRepository(PhantomFamily),
+        dataSource,
       ).findByCode(reference),
     ),
   );
 
-  writeFileSync('design-bom-input.json', JSON.stringify({ design, bom }, null, 1));
-  console.log(`design-bom-input.json: diseño ${design.code}, referencia ${reference}, estructura ${bom.code}`);
+  writeFileSync(
+    'design-bom-input.json',
+    JSON.stringify({ design, bom }, null, 1),
+  );
+  console.log(
+    `design-bom-input.json: diseño ${design.code}, referencia ${reference}, estructura ${bom.code}`,
+  );
   await dataSource.destroy();
 }
 

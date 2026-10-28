@@ -98,6 +98,7 @@ describe('PhantomProcessService', () => {
   let familyTable: FakeTable<Row>;
   let columnTable: FakeTable<Row>;
   let itemTable: FakeTable<Row>;
+  let structuresInUse: string[] = [];
 
   beforeEach(() => {
     processTable = new FakeTable();
@@ -120,6 +121,8 @@ describe('PhantomProcessService', () => {
           callback(manager),
       ),
       getRepository: (entity: unknown) => repositories.get(entity),
+      // Only `structuresUsing` reads raw SQL: the structures with a family of the process
+      query: jest.fn(async () => structuresInUse.map((code) => ({ code }))),
     } as unknown as DataSource;
 
     service = new PhantomProcessService(
@@ -181,6 +184,18 @@ describe('PhantomProcessService', () => {
           .sort((a, b) => a.position - b.position)
           .map((process) => process.name),
       ).toEqual(['CANASTILLAS', 'EMBLEMADO']);
+    });
+
+    it('does not remove an empty process whose families are in a BOM structure', async () => {
+      const process = await service.create('EMBLEMADO');
+      structuresInUse = ['1-25-220-120'];
+
+      await expect(service.remove(process.id)).rejects.toThrow(/1-25-220-120/);
+      structuresInUse = [];
+      await service.remove(process.id);
+      await expect(service.findOrFail(process.id)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('removes an empty process, but not one with phantom items', async () => {

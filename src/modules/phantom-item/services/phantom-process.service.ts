@@ -215,7 +215,27 @@ export class PhantomProcessService {
         `The process "${process.name}" still has ${process.phantomItemsCount} phantom item(s)`,
       );
     }
+    const structures = await this.structuresUsing(id);
+    if (structures.length > 0) {
+      throw new ConflictException(
+        `The process "${process.name}" has families in the bill of materials structure(s) ${structures.join(', ')}`,
+      );
+    }
     await this.processRepository.update(id, { deletedAt: new Date() });
+  }
+
+  /** Codes of the active BOM structures with a family of this process in their tree */
+  private async structuresUsing(processId: number): Promise<string[]> {
+    const rows: { code: string }[] = await this.dataSource.query(
+      `SELECT DISTINCT b.code
+         FROM bill_of_materials_node_phantom_family nf
+         JOIN phantom_family f ON f.id = nf.phantom_family_id
+         JOIN bill_of_materials_node n ON n.id = nf.node_id AND n.deleted_at IS NULL
+         JOIN bill_of_materials b ON b.id = n.bill_of_materials_id AND b.deleted_at IS NULL
+        WHERE nf.deleted_at IS NULL AND f.process_id = @0`,
+      [processId],
+    );
+    return rows.map((row) => row.code);
   }
 
   async setColumns(

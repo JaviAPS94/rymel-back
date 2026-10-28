@@ -85,6 +85,16 @@ export class PhantomItemController {
     return this.importService.getExpectedColumns();
   }
 
+  @Get('product-types')
+  @Roles(Role.ADMIN, Role.DESIGN, Role.NORM)
+  @ApiOperation({
+    summary:
+      'Distinct product types (Tipo PT) of the phantom items, with their count',
+  })
+  getProductTypes() {
+    return this.phantomItemService.productTypes();
+  }
+
   @Get('template')
   @Roles(Role.ADMIN)
   @ApiOperation({

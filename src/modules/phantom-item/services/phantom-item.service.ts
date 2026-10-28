@@ -98,6 +98,18 @@ export class PhantomItemService {
     private readonly processes: PhantomProcessService,
   ) {}
 
+  /** The product types (Tipo PT) in use, as written, with how many items have each. */
+  async productTypes(): Promise<{ code: string; count: number }[]> {
+    const rows: { code: string; count: number }[] = await this.dataSource.query(
+      `SELECT LTRIM(RTRIM(finished_product_type)) AS code, COUNT(*) AS count
+         FROM phantom_item
+        WHERE deleted_at IS NULL AND LTRIM(RTRIM(finished_product_type)) <> ''
+        GROUP BY LTRIM(RTRIM(finished_product_type))
+        ORDER BY code`,
+    );
+    return rows.map((row) => ({ code: row.code, count: Number(row.count) }));
+  }
+
   async findAllPaginated(
     filters: PhantomItemsFiltersPaginatedDto,
   ): Promise<PhantomItemListOutputDto> {
