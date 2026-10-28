@@ -29,6 +29,8 @@ import { TemplateRevision } from './entities/template-revision.entity';
 import { TemplateAdminService } from './services/template-admin.service';
 import { TemplateAdminController } from './template-admin.controller';
 import { DesignService } from './services/design.service';
+import { DesignBomAdjustmentService } from './services/design-bom-adjustment.service';
+import { DesignBomAdjustment } from './entities/design-bom-adjustment.entity';
 import { DesignCodeRulesModule } from '../design-code-rules/design-code-rules.module';
 
 @Module({
@@ -48,6 +50,7 @@ import { DesignCodeRulesModule } from '../design-code-rules/design-code-rules.mo
       Sheet,
       TemplateDraft,
       TemplateRevision,
+      DesignBomAdjustment,
     ]),
     DesignCodeRulesModule,
   ],
@@ -69,6 +72,7 @@ import { DesignCodeRulesModule } from '../design-code-rules/design-code-rules.mo
     TemplateService,
     TemplateAdminService,
     DesignService,
+    DesignBomAdjustmentService,
   ],
   exports: [
     DesignTypeService,
