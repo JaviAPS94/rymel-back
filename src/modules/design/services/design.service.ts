@@ -3,12 +3,13 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { DataSource, In } from 'typeorm';
+import { DataSource, In, IsNull } from 'typeorm';
 import { CreateDesignDto } from '../dtos/create-desing.dto';
 import { Design } from '../entities/design.entity';
 import { DesignElement } from '../entities/design-element.entity';
 import { Element } from 'src/modules/element/entities/element.entity';
 import { SubDesign } from '../entities/sub-design.entity';
+import { DesignBomAdjustment } from '../entities/design-bom-adjustment.entity';
 import { DesignSubType } from '../entities/design-subtype.entity';
 import { DesignFiltersPaginatedDto } from '../dtos/designs-filters-paginated.dto';
 import { Cost } from 'src/modules/costs/entities/cost.entity';
@@ -328,6 +329,12 @@ export class DesignService {
       await queryRunner.manager.update(
         SubDesign,
         { design: { id } },
+        { deletedAt },
+      );
+
+      await queryRunner.manager.update(
+        DesignBomAdjustment,
+        { designId: id, deletedAt: IsNull() },
         { deletedAt },
       );
 

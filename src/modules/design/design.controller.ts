@@ -8,7 +8,9 @@ import {
   Post,
   Put,
   Query,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { DesignTypeService } from './services/design-type.service';
 import { DesignSubTypeService } from './services/design-subtype.service';
@@ -30,6 +32,11 @@ import {
   DesignCodeGenerationResponseDto,
   GenerateDesignCodeDto,
 } from '../design-code-rules/dtos/generate-design-code.dto';
+import { DesignBomAdjustmentService } from './services/design-bom-adjustment.service';
+import {
+  DesignBomAdjustmentDto,
+  SaveDesignBomAdjustmentDto,
+} from './dtos/design-bom-adjustment.dto';
 
 @ApiTags('Design')
 @Controller('design')
@@ -40,6 +47,7 @@ export class DesignController {
     private readonly templateService: TemplateService,
     private readonly designService: DesignService,
     private readonly designCodeGenerationService: DesignCodeGenerationService,
+    private readonly designBomAdjustmentService: DesignBomAdjustmentService,
   ) {}
 
   @Get('/code/is-available')
@@ -433,6 +441,75 @@ export class DesignController {
   async deleteById(@Param('id') id: number): Promise<void> {
     try {
       await this.designService.deleteById(id);
+    } catch (error) {
+      throw new HttpException(error.message, error?.getStatus() ?? 500);
+    }
+  }
+
+  @Get('/:id/bom-adjustment')
+  @Roles(Role.ADMIN, Role.DESIGN)
+  @ApiResponse({
+    status: 200,
+    description: 'The saved BOM adjustment of the design.',
+    type: DesignBomAdjustmentDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Design not found, or it has no BOM adjustment.',
+  })
+  async getBomAdjustment(
+    @Param('id') id: number,
+  ): Promise<DesignBomAdjustmentDto> {
+    try {
+      const adjustment = await this.designBomAdjustmentService.find(id);
+      return new DesignBomAdjustmentDto(adjustment);
+    } catch (error) {
+      throw new HttpException(error.message, error?.getStatus() ?? 500);
+    }
+  }
+
+  @Put('/:id/bom-adjustment')
+  @Roles(Role.ADMIN, Role.DESIGN)
+  @ApiResponse({
+    status: 200,
+    description: 'BOM adjustment saved; replaces the previous one.',
+    type: DesignBomAdjustmentDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Design not found.',
+  })
+  async saveBomAdjustment(
+    @Param('id') id: number,
+    @Body(ValidationPipe) dto: SaveDesignBomAdjustmentDto,
+    @Req() request: Request,
+  ): Promise<DesignBomAdjustmentDto> {
+    try {
+      const user = (request as Request & { user?: { email?: string } }).user;
+      const adjustment = await this.designBomAdjustmentService.save(
+        id,
+        dto,
+        user?.email,
+      );
+      return new DesignBomAdjustmentDto(adjustment);
+    } catch (error) {
+      throw new HttpException(error.message, error?.getStatus() ?? 500);
+    }
+  }
+
+  @Delete('/:id/bom-adjustment')
+  @Roles(Role.ADMIN, Role.DESIGN)
+  @ApiResponse({
+    status: 200,
+    description: 'BOM adjustment discarded.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Design not found, or it has no BOM adjustment.',
+  })
+  async deleteBomAdjustment(@Param('id') id: number): Promise<void> {
+    try {
+      await this.designBomAdjustmentService.remove(id);
     } catch (error) {
       throw new HttpException(error.message, error?.getStatus() ?? 500);
     }
