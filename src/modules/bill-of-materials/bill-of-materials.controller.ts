@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -17,6 +18,10 @@ import { CreateBillOfMaterialsDto } from './dtos/create-bill-of-materials.dto';
 import { UpdateBillOfMaterialsDto } from './dtos/update-bill-of-materials.dto';
 import { CreateBomNodeDto } from './dtos/create-bom-node.dto';
 import { UpdateBomNodeDto } from './dtos/update-bom-node.dto';
+import {
+  AddNodePhantomFamiliesDto,
+  SetBomProductTypesDto,
+} from './dtos/bom-phantoms.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
 
@@ -180,6 +185,83 @@ export class BillOfMaterialsController {
     try {
       await this.bomService.removeNode(nodeId);
       return { message: 'Nodo y sus hijos eliminados exitosamente' };
+    } catch (error: any) {
+      throw new HttpException(
+        error.message,
+        error.status ?? HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Put(':id/product-types')
+  @Roles(Role.ADMIN, Role.NORM)
+  @ApiResponse({ status: 200, description: 'Tipos PT de la estructura.' })
+  @ApiResponse({ status: 404, description: 'BOM no encontrado.' })
+  async setProductTypes(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SetBomProductTypesDto,
+  ) {
+    try {
+      return {
+        productTypes: await this.bomService.setProductTypes(id, dto.codes),
+      };
+    } catch (error: any) {
+      throw new HttpException(
+        error.message,
+        error.status ?? HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get(':id/phantom-families/:familyId/items')
+  @Roles(Role.ADMIN, Role.NORM, Role.DESIGN)
+  @ApiResponse({
+    status: 200,
+    description: 'Fantasmas de la familia que ofrece la estructura.',
+  })
+  @ApiResponse({ status: 404, description: 'BOM no encontrado.' })
+  async offeredPhantomItems(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('familyId', ParseIntPipe) familyId: number,
+  ) {
+    try {
+      return await this.bomService.offeredPhantomItems(id, familyId);
+    } catch (error: any) {
+      throw new HttpException(
+        error.message,
+        error.status ?? HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('nodes/:nodeId/phantom-families')
+  @Roles(Role.ADMIN, Role.NORM)
+  @ApiResponse({ status: 201, description: 'Familias colgadas del nodo.' })
+  @ApiResponse({ status: 400, description: 'Familia inexistente.' })
+  @ApiResponse({ status: 409, description: 'El nodo ya tiene la familia.' })
+  async addPhantomFamilies(
+    @Param('nodeId', ParseIntPipe) nodeId: number,
+    @Body() dto: AddNodePhantomFamiliesDto,
+  ) {
+    try {
+      await this.bomService.addPhantomFamilies(nodeId, dto.familyIds);
+      return { message: 'Familias agregadas al nodo' };
+    } catch (error: any) {
+      throw new HttpException(
+        error.message,
+        error.status ?? HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Delete('node-phantom-families/:id')
+  @Roles(Role.ADMIN, Role.NORM)
+  @ApiResponse({ status: 200, description: 'Familia quitada del árbol.' })
+  @ApiResponse({ status: 404, description: 'No encontrada.' })
+  async removePhantomFamily(@Param('id', ParseIntPipe) id: number) {
+    try {
+      await this.bomService.removePhantomFamily(id);
+      return { message: 'Familia quitada del árbol' };
     } catch (error: any) {
       throw new HttpException(
         error.message,
